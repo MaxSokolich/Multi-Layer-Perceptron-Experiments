@@ -111,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
         
 
-        self.setFile()
+        #self.setFile()
 
 
         
@@ -475,10 +475,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def setFile(self):
         if self.videopath == 0:
             try:
-                #self.cap  = cv2.VideoCapture(0) 
+                self.cap  = cv2.VideoCapture(0) 
                 
-                self.cap  = EasyPySpin.VideoCapture(0)
-                self.cap.set(cv2.CAP_PROP_AUTO_WB, True)
+                #self.cap  = EasyPySpin.VideoCapture(0)
+                #self.cap.set(cv2.CAP_PROP_AUTO_WB, True)
                 #self.cap.set(cv2.CAP_PROP_FPS, 30)
                 #self.cap.set(cv2.CAP_PROP_FPS, 30)
             except Exception:

@@ -201,8 +201,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
+
+
+
+
     def update_image(self, frame, robot_list):
         """Updates the image_label with a new opencv image"""
+
 
         #insert algorithm below
         if self.algorithm_status == True:
@@ -212,6 +217,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.arduino.send(Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq)
         else:
             self.arduino.send(0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+
+
+
 
 
         #DEFINE CURRENT ROBOT PARAMS TO A LIST

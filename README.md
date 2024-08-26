@@ -21,5 +21,4 @@ pyuic5 uis/GUI.ui -o gui_widgets.py
 
 /opt/homebrew/bin/python3.9 -m PyQt5.uic.pyuic uis/GUI.ui -o gui_widgets.py
 <img width="1726" alt="GUI" src="https://github.com/user-attachments/assets/405738fd-477d-40c1-ba8c-38b9571400e5">
-![result1721853419 6546519](https://github.com/user-attachments/assets/698b85e7-f01d-47fc-82b9-f76d2dc9047c)
-![result1721853137 7331169](https://github.com/user-attachments/assets/50346e12-a95c-4b9c-8ebd-c09f3cefe456)
+

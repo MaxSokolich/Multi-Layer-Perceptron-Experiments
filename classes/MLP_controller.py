@@ -238,7 +238,7 @@ class MLP_controller(object):
                 reflect = True
 
             #print(db)
-            ctrl = self.model_a(db.float()).double() + self.a_means
+            ctrl = self.model_a(db.float()).double() #+ self.a_means
             #print(ctrl)
             if reflect:
                 #print(ctrl[:,2:4])
@@ -266,7 +266,7 @@ class MLP_controller(object):
                 reflect = True
 
 
-            ctrl = self.model_b(da.float()).double() + self.b_means
+            ctrl = self.model_b(da.float()).double() #+ self.b_means
 
             if reflect:
                 ctrl[:,2:4] = torch.arctan2(torch.sin(ctrl[:,2:4]), -torch.cos(ctrl[:,2:4]))

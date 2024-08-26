@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+import torch
 
 from classes.MLP_controller import MLP_controller
 
@@ -14,17 +14,17 @@ class control_algorithm:
         self.my_mlp_controller = MLP_controller()
         self.my_mlp_controller.N = 1
 
-        start_robot1_x = p1[0]
-        start_robot1_y = p1[1]
+        start_robot1_x = float(p1[0])
+        start_robot1_y = float(p1[1])
 
-        start_robot2_x = p2[0]
-        start_robot2_y = p2[1]
+        start_robot2_x = float(p2[0])
+        start_robot2_y = float(p2[1])
         
-        target_robot1_x = t1[0]
-        target_robot1_y = t1[1]
+        target_robot1_x = float(t1[0])
+        target_robot1_y = float(t1[1])
 
-        target_robot2_x = t2[0]
-        target_robot2_y = t2[1]
+        target_robot2_x = float(t2[0])
+        target_robot2_y = float(t2[1])
 
         print("robot1pos = {}, robot2pos = {}, robot1target= {}, robot2target = {}".format(p1,p2,t1,t2))
 
@@ -32,7 +32,8 @@ class control_algorithm:
         Dx1 = np.array([target_robot1_x - start_robot1_x     ,     target_robot1_y - start_robot1_y])
         Dx2 = np.array([target_robot2_x - start_robot2_x     ,     target_robot2_y - start_robot2_y])
 
-        Dx = np.array([Dx1, Dx2])
+        #Dx = np.array([Dx1, Dx2])
+        Dx = torch.tensor([Dx1, Dx2])
 
 
         self.freqs, self.alphas = self.my_mlp_controller.getControl(Dx)

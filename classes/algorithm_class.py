@@ -2,71 +2,69 @@ import numpy as np
 import cv2
 
 
-
-
-
-
+from classes.MLP_controller import MLP_controller
 
 
 class control_algorithm:
-    def __init__(self):
-        self.node = 0
+    def __init__(self, p1,p2,t1,t2):
+        self.node = 0 
+        self.counter = 0
+
+
+        self.my_mlp_controller = MLP_controller()
+        self.my_mlp_controller.N = 1
+
+        start_robot1_x = p1[0]
+        start_robot1_y = p1[1]
+
+        start_robot2_x = p2[0]
+        start_robot2_y = p2[1]
+        
+        target_robot1_x = t1[0]
+        target_robot1_y = t1[1]
+
+        target_robot2_x = t2[0]
+        target_robot2_y = t2[1]
+
+        print("robot1pos = {}, robot2pos = {}, robot1target= {}, robot2target = {}".format(p1,p2,t1,t2))
+
+
+        Dx1 = np.array([target_robot1_x - start_robot1_x     ,     target_robot1_y - start_robot1_y])
+        Dx2 = np.array([target_robot2_x - start_robot2_x     ,     target_robot2_y - start_robot2_y])
+
+        Dx = np.array([Dx1, Dx2])
+
+
+        self.freqs, self.alphas = self.my_mlp_controller.getControl(Dx)
+        
+
 
     def run(self, robot_list, frame):
-        
- 
-        pts = np.array(robot_list[-1].trajectory, np.int32)
-        cv2.polylines(frame, [pts], False, (0, 0, 255), 4)
-        print(len(robot_list[-1].trajectory))
+        #this gets called at each frame
 
-        #logic for arrival condition
-        if self.node == len(robot_list[-1].trajectory):
-            #weve arrived
-           
+        self.counter +=1
+
+        if self.counter <= len(self.freqs):
+            Bx = 0 #disregard
+            By = 0 #disregard
+            Bz = 0 #disregard
+            alpha = self.alphas[self.counter]
+            gamma = np.pi/2   #disregard
+            freq = self.freqs[self.counter]    #CHANGE THIS EACH FRAME
+            psi = np.pi/2      #disregard
+            gradient = 0 # #disregard
+            acoustic_freq = 0  #disregard
+
+        else:
             Bx = 0 #disregard
             By = 0 #disregard
             Bz = 0 #disregard
             alpha = 0
             gamma = np.pi/2   #disregard
-            freq = 0    #CHANGE THIS EACH FRAME
+            freq = 0
             psi = np.pi/2      #disregard
             gradient = 0 # #disregard
             acoustic_freq = 0  #disregard
-
-
-        #closed loop algorithm 
-        else:
-            #define target coordinate
-            targetx = robot_list[-1].trajectory[self.node][0]
-            targety = robot_list[-1].trajectory[self.node][1]
-
-            #define robots current position
-            robotx = robot_list[-1].position_list[-1][0]
-            roboty = robot_list[-1].position_list[-1][1]
-            
-            #calculate error between node and robot
-            direction_vec = [targetx - robotx, targety - roboty]
-            error = np.sqrt(direction_vec[0] ** 2 + direction_vec[1] ** 2)
-            if error < 40:
-                self.node += 1
-            
-            cv2.arrowedLine(
-                    frame,
-                    (int(robotx), int(roboty)),
-                    (int(targetx), int(targety)),
-                    [100, 100, 100],
-                    3,
-                )
-                
-            Bx = 0 #disregard
-            By = 0 #disregard
-            Bz = 0 #disregard
-            alpha = np.arctan2(-direction_vec[1], direction_vec[0])  - np.pi/2
-            gamma = np.pi/2   #disregard
-            freq = 5    #CHANGE THIS EACH FRAME
-            psi = np.pi/2      #disregard
-            gradient = 0 # #disregard
-            acoustic_freq = 0  #disregard
-        
+    
         
         return frame, Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq

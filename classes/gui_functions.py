@@ -34,7 +34,7 @@ from classes.arduino_class import ArduinoHandler
 from classes.robot_class import Robot
 from classes.record_class import RecordThread
 from classes.algorithm_class import control_algorithm
-from classes.pathplanner import geo_algorithm
+
 
 class MainWindow(QtWidgets.QMainWindow):
     positionChanged = QtCore.pyqtSignal(QtCore.QPoint)
@@ -108,7 +108,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.save_status = False
         self.output_workbook = None
         self.algorithm_status = False
-    
+        
         
 
         #self.setFile()
@@ -140,51 +140,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.choosevideobutton.clicked.connect(self.selectFile)
 
         self.ui.algorithbutton.clicked.connect(self.apply_algorithm)
-        self.ui.generatepathbutton.clicked.connect(self.generatepathfunc)
+
+
+
+
+
+
+
 
   
 
-    def generatepathfunc(self):
-        #when we click the apply algorithm button generate an instance of the geo_aglorithm and run it to output the trajectory
-        image = self.tracker.robot_mask
-
-        #sibtract robot from 
-        try:
-            for bot in self.tracker.robot_list:    
-                x,y,w,h = bot.cropped_frame[-1]
-                blank = np.zeros((w, h), dtype=np.uint8) 
-                image[y:y+w , x:x+h] = blank 
-        except Exception:
-            pass
-
-
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
-        
-        start_point = (int(self.tracker.robot_list[-1].position_list[-1][0]), int(self.tracker.robot_list[-1].position_list[-1][1]))
-        end_point = (self.tracker.robot_list[-1].trajectory[-1][0], self.tracker.robot_list[-1].trajectory[-1][1])
-        print(start_point, end_point)
-        
-
-        alpha_geo = self.ui.alphabox.value() 
-        safety_radius = self.ui.safetyradiusbox.value()
-        deltas = [self.ui.delta_1.value(),
-                  self.ui.delta_2.value(),
-                  self.ui.delta_3.value(),
-                  self.ui.delta_4.value(),
-                  self.ui.delta_5.value(),
-                  self.ui.delta_6.value(),
-                  self.ui.delta_7.value(),
-                  self.ui.delta_8.value(),
-                  self.ui.delta_9.value(),
-                  self.ui.delta_10.value()]
-        
-        pathplanner = geo_algorithm(image, start_point, end_point, alpha_geo, safety_radius, deltas)
-        trajectory_nodes = pathplanner.run()
-
-        self.tracker.robot_list[-1].trajectory = trajectory_nodes
   
-
        
 
 
@@ -192,8 +158,18 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.ui.algorithbutton.isChecked():
             self.ui.algorithbutton.setText("Stop")
             self.algorithm_status = True
-            self.algorithm = control_algorithm()
+            
+            p1 = self.tracker.robot_list[0].position_list[-1]
+            p2 = self.tracker.robot_list[1].position_list[-1]
 
+            t1 = self.tracker.robot_list[0].trajectory[0]
+            t2 = self.tracker.robot_list[1].trajectory[0]
+
+
+            self.algorithm = control_algorithm(p1,p2,t1,t2)
+
+            self.algorithm.my_mlp_controller.N = self.ui.Nbox.value()
+        
         
         else:
             self.ui.algorithbutton.setText("Apply Algorithm")

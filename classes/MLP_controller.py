@@ -205,13 +205,13 @@ class MLP_controller(object):
             nOutput = 2+2+2
             model_a = MLP(nInput, nOutput)
             model_b = MLP(nInput, nOutput)
-            model_a.load_state_dict(torch.load('/home/ahmad/Desktop/uBots_MARSS/multi-ubots-learning/genDataMatlab/model_a.pt'))
-            model_b.load_state_dict(torch.load('/home/ahmad/Desktop/uBots_MARSS/multi-ubots-learning/genDataMatlab/model_b.pt'))
+            model_a.load_state_dict(torch.load('model_a.pt'))
+            model_b.load_state_dict(torch.load('model_b.pt'))
             self.model_a = model_a
             self.model_b = model_b
         if a_means is None or b_means is None:
-            train_data_a = scipy.io.loadmat('/home/ahmad/Desktop/uBots_MARSS/multi-ubots-learning/genDataMatlab/data_a_2.mat')
-            train_data_b = scipy.io.loadmat('/home/ahmad/Desktop/uBots_MARSS/multi-ubots-learning/genDataMatlab/data_b_2.mat')
+            train_data_a = scipy.io.loadmat('data_a_2.mat')
+            train_data_b = scipy.io.loadmat('data_b_2.mat')
             self.a_means = torch.tensor(train_data_a['means'])
             self.b_means = torch.tensor(train_data_b['means'])
         pass

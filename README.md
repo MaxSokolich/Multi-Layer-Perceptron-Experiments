@@ -21,4 +21,4 @@ pyuic5 uis/GUI.ui -o gui_widgets.py
 
 /opt/homebrew/bin/python3.9 -m PyQt5.uic.pyuic uis/GUI.ui -o gui_widgets.py
 
-
+git reset --soft HEAD~2

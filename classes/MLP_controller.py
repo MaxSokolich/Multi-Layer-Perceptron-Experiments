@@ -199,7 +199,7 @@ class Interp1d(torch.autograd.Function):
 
 class MLP_controller(object):
 
-    def __init__(self,mlp_model_a = None,mlp_model_b = None,a_means=None,b_means = None,dt = 0.1) -> None:
+    def __init__(self,mlp_model_a = None,mlp_model_b = None,a_means=None,b_means = None,dt = 1) -> None:
 
         self.N = 1  #descritization
 
@@ -212,15 +212,16 @@ class MLP_controller(object):
             model_b.load_state_dict(torch.load('model_b.pt'))
             self.model_a = model_a
             self.model_b = model_b
-        #if a_means is None or b_means is None:
-        #    train_data_a = scipy.io.loadmat('data_a_2.mat')
-        #    train_data_b = scipy.io.loadmat('data_b_2.mat')
-        #    self.a_means = torch.tensor(train_data_a['means'])
-        #    self.b_means = torch.tensor(train_data_b['means'])
+        if a_means is None or b_means is None:
+            train_data_a = scipy.io.loadmat('data_a_2.mat')
+            train_data_b = scipy.io.loadmat('data_b_2.mat')
+            self.a_means = torch.tensor(train_data_a['means'])
+            self.b_means = torch.tensor(train_data_b['means'])
         pass
         self.dt = dt
 
     def getControl(self,Dx):#da, db):
+
         da = Dx[0,:]
         db = Dx[1,:]
         mag_a = torch.sqrt(torch.dot(da,da))
@@ -238,7 +239,7 @@ class MLP_controller(object):
                 reflect = True
 
             #print(db)
-            ctrl = self.model_a(db.float()).double() #+ self.a_means
+            ctrl = self.model_a(db.float()).double() + self.a_means
             #print(ctrl)
             if reflect:
                 #print(ctrl[:,2:4])
@@ -252,9 +253,6 @@ class MLP_controller(object):
 
             freqs, alphas = self.discretization(ctrl) 
 
-            return freqs, alphas
-
-
         else:
             angle = torch.arctan2(db[1], db[0]) - torch.pi/2;
             A = torch.tensor([[torch.cos(-angle), -torch.sin(-angle)], [torch.sin(-angle), torch.cos(-angle)]]) / mag_b
@@ -266,7 +264,7 @@ class MLP_controller(object):
                 reflect = True
 
 
-            ctrl = self.model_b(da.float()).double() #+ self.b_means
+            ctrl = self.model_b(da.float()).double() + self.b_means
 
             if reflect:
                 ctrl[:,2:4] = torch.arctan2(torch.sin(ctrl[:,2:4]), -torch.cos(ctrl[:,2:4]))
@@ -275,24 +273,58 @@ class MLP_controller(object):
             ctrl[:,4:6] *= mag_b
 
             freqs, alphas = self.discretization(ctrl) 
+            
 
+        # Create an array of indices
+        
+        indices = np.arange(len(freqs))
 
-            return freqs, alphas
+        # Shuffle the indices
+        np.random.shuffle(indices)
+
+        # Use the shuffled indices to shuffle the array
+        shuffled_freqs = freqs[indices]
+        shuffled_alphas = alphas[indices] 
+
+        
+
+        return shuffled_freqs, shuffled_alphas
         
 
     def discretization(self,u):
         #TODO
 
+        
+      
 
-        DTs= u[4:]/self.dt
-        freqs = np.zeros(int(DTs[0]+DTs[1]))
-        alphas = np.zeros(int(DTs[0]+DTs[1]))
+        u = u[0]
+
+        if u[0].item() <=2:
+            u[0] = 15
+        
+        if u[1].item() <=2:
+            u[1] = 15
+
+        
+        
+        print("u = ", u)
+        #DTs_time1 = u[-1].item()/self.dt
+        #DTs_time2 = u[-2].item()/self.dt
+
+        DTs_time1 = 100
+        DTs_time2 = 150
+
+        
+        print("DTs = ", DTs_time1,DTs_time2)
+
+        freqs = np.zeros(int(DTs_time1+DTs_time2))
+        alphas = np.zeros(int(DTs_time1+DTs_time2))
         # frequincy sequence:
-        freqs[0:int(DTs[0])] = u[0]
-        freqs[int(DTs[0]+1):int(DTs[0]+DTs[1])] = u[1]
+        freqs[0:int(DTs_time1)] = u[0].item()
+        freqs[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[1].item()
         # heading sequence:  
-        alphas[0:int(DTs[0])] = u[2]
-        alphas[int(DTs[0]+1):int(DTs[0]+DTs[1])] = u[3]
+        alphas[0:int(DTs_time1)] = u[2].item()
+        alphas[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[3].item()
         
         return freqs, alphas 
 

@@ -17,24 +17,31 @@ class control_algorithm:
         start_robot1_x = float(p1[0])
         start_robot1_y = float(p1[1])
 
-        start_robot2_x = float(p2[0])
-        start_robot2_y = float(p2[1])
-        
         target_robot1_x = float(t1[0])
         target_robot1_y = float(t1[1])
 
+        start_robot2_x = float(p2[0])
+        start_robot2_y = float(p2[1])
+        
         target_robot2_x = float(t2[0])
         target_robot2_y = float(t2[1])
 
         print("robot1pos = {}, robot2pos = {}, robot1target= {}, robot2target = {}".format(p1,p2,t1,t2))
 
 
-        Dx1 = np.array([target_robot1_x - start_robot1_x     ,     target_robot1_y - start_robot1_y])
-        Dx2 = np.array([target_robot2_x - start_robot2_x     ,     target_robot2_y - start_robot2_y])
+        Dx1 = np.array([target_robot1_x - start_robot1_x     ,     target_robot1_y - start_robot1_y])  #click first on bigger robot
+        Dx2 = np.array([target_robot2_x - start_robot2_x     ,     target_robot2_y - start_robot2_y])  #click second on smaller robot
 
+        print("Dx1 = ", Dx1)
         #Dx = np.array([Dx1, Dx2])
+        
         Dx = torch.tensor([Dx1, Dx2])
 
+        
+
+
+        print("Dx = ", Dx[0], Dx[1])
+        print("Dx1 = ", Dx1)
 
         self.freqs, self.alphas = self.my_mlp_controller.getControl(Dx)
         
@@ -45,7 +52,7 @@ class control_algorithm:
 
         self.counter +=1
 
-        if self.counter <= len(self.freqs):
+        if self.counter < len(self.freqs):
             Bx = 0 #disregard
             By = 0 #disregard
             Bz = 0 #disregard
@@ -67,5 +74,5 @@ class control_algorithm:
             gradient = 0 # #disregard
             acoustic_freq = 0  #disregard
     
-        
+    
         return frame, Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq

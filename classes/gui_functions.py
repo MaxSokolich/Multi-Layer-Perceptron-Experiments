@@ -34,7 +34,7 @@ from classes.arduino_class import ArduinoHandler
 from classes.robot_class import Robot
 from classes.record_class import RecordThread
 from classes.algorithm_class import control_algorithm
-
+from classes.projection_class import AxisProjection
 
 class MainWindow(QtWidgets.QMainWindow):
     positionChanged = QtCore.pyqtSignal(QtCore.QPoint)
@@ -91,7 +91,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.arduino = ArduinoHandler(self.tbprint)
         self.arduino.connect(PORT)
         
-
+        self.projection = AxisProjection()
 
 
 
@@ -191,12 +191,26 @@ class MainWindow(QtWidgets.QMainWindow):
             frame, Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq = self.algorithm.run(robot_list, frame)
             
             self.arduino.send(Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq)
+            frame, self.projection.draw_sideview(frame,Bx,By,Bz,alpha,gamma,self.video_width,self.video_height)
+            frame, self.projection.draw_topview(frame,Bx,By,Bz,alpha,gamma,self.video_width,self.video_height)
+            
+            rotatingfield = "alpha: {:.0f}, gamma: {:.0f}, psi: {:.0f}, freq: {:.0f}".format(np.degrees(alpha), np.degrees(gamma), np.degrees(psi), freq) #adding 90 to alpha for display purposes only
+            
+            cv2.putText(frame, rotatingfield,
+                (int(self.video_width / 1.8),int(self.video_height / 20)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=1.5, 
+                thickness=3,
+                color = (255, 255, 255),
+            )
+
+
         else:
             self.arduino.send(0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 
 
-
+        
 
 
         #DEFINE CURRENT ROBOT PARAMS TO A LIST

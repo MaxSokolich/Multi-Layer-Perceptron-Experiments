@@ -219,6 +219,7 @@ class MLP_controller(object):
             self.b_means = torch.tensor(train_data_b['means'])
         pass
         self.dt = dt
+        self.shuffle_flag = False
 
     def getControl(self,Dx):#da, db):
 
@@ -274,29 +275,19 @@ class MLP_controller(object):
 
             freqs, alphas = self.discretization(ctrl) 
             
+        if self.shuffle_flag:
+            # Create an array of indices
+            indices = np.arange(len(freqs))
 
-        # Create an array of indices
-        
-        indices = np.arange(len(freqs))
+            # Shuffle the indices
+            np.random.shuffle(indices)
 
-        # Shuffle the indices
-        np.random.shuffle(indices)
+            # Use the shuffled indices to shuffle the array
+            freqs = freqs[indices]
+            alphas = alphas[indices] 
+        return freqs, alphas
 
-        # Use the shuffled indices to shuffle the array
-        shuffled_freqs = freqs[indices]
-        shuffled_alphas = alphas[indices] 
-
-        
-
-        return shuffled_freqs, shuffled_alphas
-        
-
-    def discretization(self,u):
-        #TODO
-
-        
-      
-
+    def discretization(self,u,Nc = 10):
         u = u[0]
 
         if u[0].item() <=2:
@@ -316,18 +307,49 @@ class MLP_controller(object):
 
         
         print("DTs = ", DTs_time1,DTs_time2)
-
-        freqs = np.zeros(int(DTs_time1+DTs_time2))
-        alphas = np.zeros(int(DTs_time1+DTs_time2))
-        # frequincy sequence:
-        freqs[0:int(DTs_time1)] = u[0].item()
-        freqs[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[1].item()
-        # heading sequence:  
-        alphas[0:int(DTs_time1)] = u[2].item()
-        alphas[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[3].item()
         
+        if not self.shuffle_flag:
+            freqs = self.merge_elments(elm1 = u[0].item(), elm2 = u[1].item(), T1 = DTs_time1 , T2 = DTs_time2, N = 5)
+            alphas =  self.merge_elments(elm1 = u[2].item(), elm2 = u[3].item(), T1 = DTs_time1 , T2 = DTs_time2, N = 5)
+        else: 
+            freqs = np.zeros(int(DTs_time1+DTs_time2))
+            alphas = np.zeros(int(DTs_time1+DTs_time2))
+            # frequincy sequence:
+            freqs[0:int(DTs_time1)] = u[0].item()
+            freqs[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[1].item()
+            # heading sequence:  
+            alphas[0:int(DTs_time1)] = u[2].item()
+            alphas[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[3].item()
         return freqs, alphas 
 
+    def merge_elments(self,elm1, elm2, T1, T2, N = 5):
+   
+        if T1>T2: 
+            x2 = T1/T2
+            e1 = True
+            assert T2 > N, 'The length of the 2nd control input seqeunce is smaller than the requisted N_rep'
+            n1 = int(x2 * N) 
+            n2 = N
+            rep = int(T2 / N)
+        else: 
+            x2 = T2/T1
+            e1 = False
+            assert T1 > N, 'The length of the 1st control input seqeunce is smaller than the requisted N_rep'
+            n1 = N 
+            n2 = int(x2 * N)
+            rep = int(T1 / N) 
+        resd1 = T1 - n1 * rep
+        resd2 = T2 - n2 *rep  
+        u1_resd = list(np.repeat(elm1,resd1))
+        u2_resd = list(np.repeat(elm1,resd2))
+        u1 = list(np.repeat(elm1,n1))
+        u2 = list(np.repeat(elm2,n2))
+        [u1.append(elem) for elem in u2]
+        # Now do the concatnation: 
+        u = list(np.tile(u1,rep))
+        [u.append(elem) for elem in u1_resd]
+        [u.append(elem) for elem in u2_resd]
+        return np.array(u) 
 # ---------------------------
 
 

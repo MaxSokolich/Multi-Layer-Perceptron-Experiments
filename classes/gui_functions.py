@@ -67,8 +67,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     
       
-
-        self.new_dir_path = "d:\geoplanner\Tracking Data"
+        home_dir = expanduser("~")
+        new_dir_name = "Tracking Data"
+        desktop_path = os.path.join(home_dir, "Desktop")
+        self.new_dir_path = os.path.join(desktop_path, new_dir_name)
+        
         if not os.path.exists(self.new_dir_path):
             os.makedirs(self.new_dir_path)
 

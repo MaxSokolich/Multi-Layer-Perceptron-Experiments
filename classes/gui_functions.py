@@ -36,6 +36,10 @@ from classes.record_class import RecordThread
 from classes.algorithm_class import control_algorithm
 from classes.projection_class import AxisProjection
 
+
+
+
+
 class MainWindow(QtWidgets.QMainWindow):
     positionChanged = QtCore.pyqtSignal(QtCore.QPoint)
 
@@ -67,11 +71,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     
       
-        home_dir = expanduser("~")
-        new_dir_name = "Tracking Data"
-        desktop_path = os.path.join(home_dir, "Desktop")
-        self.new_dir_path = os.path.join(desktop_path, new_dir_name)
-        
+
+        self.new_dir_path = "d:\geoplanner\Tracking Data"
         if not os.path.exists(self.new_dir_path):
             os.makedirs(self.new_dir_path)
 
@@ -143,18 +144,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.choosevideobutton.clicked.connect(self.selectFile)
 
         self.ui.algorithbutton.clicked.connect(self.apply_algorithm)
+        self.ui.resetalgorithmbutton.clicked.connect(self.show_sim)
+        
 
-
-
-
-
-
-
-
-  
-
-  
-       
 
 
     def apply_algorithm(self):
@@ -162,13 +154,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.algorithbutton.setText("Stop")
             self.algorithm_status = True
             
-            p1 = self.tracker.robot_list[0].position_list[-1]
-            p2 = self.tracker.robot_list[1].position_list[-1]
+            p1 = self.tracker.robot_list[0].position_list[-1] #robot1 start [x1, y1]
+            p2 = self.tracker.robot_list[1].position_list[-1] #robot2 start
 
-            t1 = self.tracker.robot_list[0].trajectory[0]
-            t2 = self.tracker.robot_list[1].trajectory[0]
+            t1 = self.tracker.robot_list[0].trajectory[0]      #robot1 target
+            t2 = self.tracker.robot_list[1].trajectory[0]      #robot2 target
 
-
+         
             self.algorithm = control_algorithm(p1,p2,t1,t2)
 
             self.algorithm.my_mlp_controller.N = self.ui.Nbox.value()
@@ -182,6 +174,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
+
+    def show_sim(self):
+        pass
+
+        
+        
 
 
     def update_image(self, frame, robot_list):
@@ -360,7 +358,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         robot.add_stuck_status(0)
                         robot.crop_length = self.ui.robotcroplengthbox.value()
                         self.tracker.robot_list.append(robot) #this has to include tracker.robot_list because I need to add it to that class
-                        
+                        print(self.tracker.robot_list)
         
                
                     

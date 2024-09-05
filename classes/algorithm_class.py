@@ -15,16 +15,16 @@ class control_algorithm:
         self.my_mlp_controller.N = 1
 
         start_robot1_x = float(p1[0])
-        start_robot1_y = float(p1[1])
+        start_robot1_y = float(2048 - p1[1])
 
         target_robot1_x = float(t1[0])
-        target_robot1_y = float(t1[1])
+        target_robot1_y = float(2048 - t1[1])
 
         start_robot2_x = float(p2[0])
-        start_robot2_y = float(p2[1])
+        start_robot2_y = float(2048 - p2[1])
         
         target_robot2_x = float(t2[0])
-        target_robot2_y = float(t2[1])
+        target_robot2_y = float(2048 - t2[1])
 
         print("robot1pos = {}, robot2pos = {}, robot1target= {}, robot2target = {}".format(p1,p2,t1,t2))
 
@@ -43,7 +43,18 @@ class control_algorithm:
         print("Dx = ", Dx[0], Dx[1])
         print("Dx1 = ", Dx1)
 
-        self.freqs, self.alphas = self.my_mlp_controller.getControl(Dx)
+        
+        
+        self.freqs, self.alphas, ctrl = self.my_mlp_controller.getControl(Dx)
+
+        self.my_mlp_controller.sim([start_robot1_x,start_robot1_y],
+                                   [target_robot1_x,target_robot1_y],
+                                   [start_robot2_x,start_robot2_y],
+                                   [target_robot2_x,target_robot2_y],
+                                   ctrl
+
+                                   )
+
         
 
 
@@ -56,7 +67,7 @@ class control_algorithm:
             Bx = 0 #disregard
             By = 0 #disregard
             Bz = 0 #disregard
-            alpha = self.alphas[self.counter]
+            alpha = self.alphas[self.counter] - np.pi/2
             gamma = np.pi/2   #disregard
             freq = self.freqs[self.counter]    #CHANGE THIS EACH FRAME
             psi = np.pi/2      #disregard

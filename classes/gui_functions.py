@@ -192,6 +192,7 @@ class MainWindow(QtWidgets.QMainWindow):
             frame, Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq = self.algorithm.run(robot_list, frame)
             
             self.arduino.send(Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq)
+            
             frame, self.projection.draw_sideview(frame,Bx,By,Bz,alpha,gamma,self.video_width,self.video_height)
             frame, self.projection.draw_topview(frame,Bx,By,Bz,alpha,gamma,self.video_width,self.video_height)
             

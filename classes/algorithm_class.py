@@ -3,13 +3,13 @@ import cv2
 import torch
 
 from classes.MLP_controller import MLP_controller
-
+import time
 
 class control_algorithm:
     def __init__(self, p1,p2,t1,t2):
         self.node = 0 
         self.counter = 0
-
+        self.start = time.time()
 
         self.my_mlp_controller = MLP_controller()
         self.my_mlp_controller.N = 1
@@ -35,6 +35,11 @@ class control_algorithm:
         print("Dx1 = ", Dx1)
         #Dx = np.array([Dx1, Dx2])
         
+        #converting pixels to ums
+        pix2metric = 0.28985 * 10
+        Dx1 = Dx1 / pix2metric
+        Dx2 = Dx2 / pix2metric
+
         Dx = torch.tensor([Dx1, Dx2])
 
         
@@ -62,8 +67,9 @@ class control_algorithm:
         #this gets called at each frame
 
         self.counter +=1
-
+       
         if self.counter < len(self.freqs):
+            print("{}/{}, time = {}".format(self.counter, len(self.freqs),round(time.time()-self.start, 3)))
             Bx = 0 #disregard
             By = 0 #disregard
             Bz = 0 #disregard

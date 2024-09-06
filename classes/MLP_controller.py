@@ -210,13 +210,13 @@ class MLP_controller(object):
             nOutput = 2+2+2
             model_a = MLP(nInput, nOutput)
             model_b = MLP(nInput, nOutput)
-            model_a.load_state_dict(torch.load('model_a_520.pt'))
-            model_b.load_state_dict(torch.load('model_b_520.pt'))
+            model_a.load_state_dict(torch.load('models/model_a_510.pt'))
+            model_b.load_state_dict(torch.load('models/model_b_510.pt'))
             self.model_a = model_a
             self.model_b = model_b
         if a_means is None or b_means is None:
-            train_data_a = scipy.io.loadmat('data_a_2_520.mat')
-            train_data_b = scipy.io.loadmat('data_b_2_520.mat')
+            train_data_a = scipy.io.loadmat('models/data_a_2_510.mat')
+            train_data_b = scipy.io.loadmat('models/data_b_2_510.mat')
             self.a_means = torch.tensor(train_data_a['means'])
             self.b_means = torch.tensor(train_data_b['means'])
             self.FREQS = torch.tensor(train_data_b['freqs'])
@@ -380,8 +380,8 @@ class MLP_controller(object):
         u = u[0]
 
 
-        DTs_time1 = u[-1].item()/self.dt
-        DTs_time2 = u[-2].item()/self.dt
+        DTs_time1 = u[-2].item()/self.dt
+        DTs_time2 = u[-1].item()/self.dt
         
 
 

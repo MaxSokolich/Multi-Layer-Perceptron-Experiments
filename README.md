@@ -1,4 +1,4 @@
-This is a repo containing the microrobotic control user interface for a novel geometry based path planning obstacle avoidance algorithm.
+This is a repo containing the microrobotic control user interface for an algorithm for independetly controlling mulitple microrobots to unique destinations in the workspace. it uses a multi layer perceptron neural network trained via training data to determine the opimtal action commands to the magnetic manipiulation system.
 
 
 
@@ -13,12 +13,11 @@ This is a repo containing the microrobotic control user interface for a novel ge
 
 7) need to add "self.cam.PixelFormat.SetValue(PySpin.PixelFormat_BGR8)" above self.cam.BeginAcquistion() line in $ .local/lib/python3.8/site-packages/EasyPySpin.videocapture.py
 
-
-
-
 pyuic5 uis/GUI.ui -o gui_widgets.py
 
 
 /opt/homebrew/bin/python3.9 -m PyQt5.uic.pyuic uis/GUI.ui -o gui_widgets.py
 
 git reset --soft HEAD~2
+
+![alt text](MLP-1.PNG)

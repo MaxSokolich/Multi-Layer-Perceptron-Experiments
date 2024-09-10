@@ -67,8 +67,32 @@ class control_algorithm:
         #this gets called at each frame
 
         self.counter +=1
-       
-        if self.counter < len(self.freqs):
+
+
+        bot1_pos_x = robot_list[0].position_list[-1][0]
+        bot1_pos_y = robot_list[0].position_list[-1][1]
+
+        bot2_pos_x = robot_list[1].position_list[-1][0]
+        bot2_pos_y = robot_list[1].position_list[-1][1]
+
+        bot1_target_x = robot_list[0].trajectory[-1][0]
+        bot1_target_y = robot_list[0].trajectory[-1][1]
+
+        bot2_target_x = robot_list[1].trajectory[-1][0]
+        bot2_target_y = robot_list[1].trajectory[-1][1]
+
+        error_bot1 = np.sqrt((bot1_pos_x - bot1_target_x)**2 + (bot1_pos_y - bot1_target_y)**2)
+        error_bot2 = np.sqrt((bot2_pos_x - bot2_target_x)**2 + (bot2_pos_y - bot2_target_y)**2)
+
+
+
+
+        print("errorbot1 = {}, errorbot2 = {}".format(error_bot1, error_bot2))
+
+        
+
+
+        if self.counter < len(self.freqs) and (error_bot1 > 30 and error_bot2 > 30):
             print("{}/{}, time = {}".format(self.counter, len(self.freqs),round(time.time()-self.start, 3)))
             Bx = 0 #disregard
             By = 0 #disregard
@@ -79,6 +103,8 @@ class control_algorithm:
             psi = np.pi/2      #disregard
             gradient = 0 # #disregard
             acoustic_freq = 0  #disregard
+        
+      
 
         else:
             Bx = 0 #disregard

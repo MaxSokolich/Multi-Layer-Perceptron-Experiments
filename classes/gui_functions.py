@@ -480,7 +480,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 self.cap  = EasyPySpin.VideoCapture(0)
                 self.cap.set(cv2.CAP_PROP_AUTO_WB, True)
-                self.cap.set(cv2.CAP_PROP_FPS, 10)
+                self.cap.set(cv2.CAP_PROP_FPS, 24)
                 #self.cap.set(cv2.CAP_PROP_FPS, 30)
             except Exception:
                 self.cap  = cv2.VideoCapture(0) 

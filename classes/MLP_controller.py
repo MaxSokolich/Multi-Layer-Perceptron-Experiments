@@ -199,10 +199,11 @@ class Interp1d(torch.autograd.Function):
 
 class MLP_controller(object):
 
-    def __init__(self,mlp_model_a = None,mlp_model_b = None,a_means=None,b_means = None,dt = 1) -> None:
+    def __init__(self,mlp_model_a = None,mlp_model_b = None,a_means=None,b_means = None,dt = 1/24) -> None:
 
-        self.N = 1  #descritization
+        self.N = 5  #descritization
         self.interp1d = Interp1d.apply
+        self.rep = 1
 
 
         if mlp_model_a is None or mlp_model_b is None:
@@ -275,13 +276,17 @@ class MLP_controller(object):
         delta_b[0] = torch.sum(speeds_b * torch.cos(angles) * deltaTimes) #x
         delta_b[1] = torch.sum(speeds_b * torch.sin(angles) * deltaTimes) #y
 
-        numSteps = 1
+        numSteps = self.rep
         deltaTimes = deltaTimes / numSteps
         pos_a = np.zeros((2,2*numSteps+1))
         pos_b = np.zeros((2,2*numSteps+1))
         pos_a[:,0] = a0
         pos_b[:,0] = b0
+
+
         for i in range(1,numSteps+1):
+
+            
             pos_a[0,2*i-1] = pos_a[0,2*i-2] + speeds_a[0] * torch.cos(angles[0,0]) * deltaTimes[0,0] #x
             pos_a[1,2*i-1] = pos_a[1,2*i-2] + speeds_a[0] * torch.sin(angles[0,0]) * deltaTimes[0,0] #y
             pos_b[0,2*i-1] = pos_b[0,2*i-2] + speeds_b[0] * torch.cos(angles[0,0]) * deltaTimes[0,0] #x
@@ -291,6 +296,8 @@ class MLP_controller(object):
             pos_a[1,2*i] = pos_a[1,2*i-1] + speeds_a[1] * torch.sin(angles[0,1]) * deltaTimes[0,1] #y
             pos_b[0,2*i] = pos_b[0,2*i-1] + speeds_b[1] * torch.cos(angles[0,1]) * deltaTimes[0,1] #x
             pos_b[1,2*i] = pos_b[1,2*i-1] + speeds_b[1] * torch.sin(angles[0,1]) * deltaTimes[0,1] #y
+
+
 
         plt.scatter(pos_a[0,:], pos_a[1,:], color = 'r', marker = '.')
         plt.scatter(pos_b[0,:], pos_b[1,:], color = 'b', marker = '.')
@@ -395,12 +402,14 @@ class MLP_controller(object):
 
         alphas_array = np.array(list(alphas1) + list(alphas2))
 
-        print("freqs arr = ", freqs_array)
+
+
+        
         print("DTs = ", DTs_time1,DTs_time2)
         
         # if not self.shuffle_flag:
-        #     freqs = self.merge_elments(elm1 = u[0].item(), elm2 = u[1].item(), T1 = DTs_time1 , T2 = DTs_time2, N = 5)
-        #     alphas =  self.merge_elments(elm1 = u[2].item(), elm2 = u[3].item(), T1 = DTs_time1 , T2 = DTs_time2, N = 5)
+        #     freqs = self.merge_elments(elm1 = u[0].item(), elm2 = u[1].item(), T1 = DTs_time1 , T2 = DTs_time2, N = self.N)
+        #     alphas =  self.merge_elments(elm1 = u[2].item(), elm2 = u[3].item(), T1 = DTs_time1 , T2 = DTs_time2, N = self.N)
         # else: 
         #     freqs = np.zeros(int(DTs_time1+DTs_time2))
         #     alphas = np.zeros(int(DTs_time1+DTs_time2))
@@ -411,7 +420,7 @@ class MLP_controller(object):
         #     alphas[0:int(DTs_time1)] = u[2].item()
         #     alphas[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[3].item()
 
-        return freqs_array, alphas_array 
+        return freqs_array, alphas_array
 
 
 
@@ -442,6 +451,8 @@ class MLP_controller(object):
         u = list(np.tile(u1,rep))
         [u.append(elem) for elem in u1_resd]
         [u.append(elem) for elem in u2_resd]
+
+        self.rep = rep
         return np.array(u) 
 # ---------------------------
 

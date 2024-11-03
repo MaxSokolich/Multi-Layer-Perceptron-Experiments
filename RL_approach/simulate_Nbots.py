@@ -16,7 +16,6 @@ class uBotsSim(object):
         self.YMAX = YMAX
         self.dt = dt
         self.positions = np.random.uniform([XMIN, YMIN], [XMAX, YMAX], (N, 2))
-        # I want to add the animation to this class.
         self.fig, self.ax = plt.subplots()
         self.ax.set_xlim(self.XMIN, self.XMAX)
         self.ax.set_ylim(self.YMIN, self.YMAX)

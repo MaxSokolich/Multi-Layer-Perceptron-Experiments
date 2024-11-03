@@ -199,27 +199,119 @@ class Interp1d(torch.autograd.Function):
 
 class MLP_controller(object):
 
-    def __init__(self,mlp_model_a = None,mlp_model_b = None,a_means=None,b_means = None,dt = 1) -> None:
+    def __init__(self,mlp_model_a = None,mlp_model_b = None,a_means=None,b_means = None,dt = 1/24) -> None:
 
-        self.N = 1  #descritization
+        self.N = 5  #descritization
+        self.interp1d = Interp1d.apply
+        self.rep = 1
+
 
         if mlp_model_a is None or mlp_model_b is None:
             nInput = 2
             nOutput = 2+2+2
             model_a = MLP(nInput, nOutput)
             model_b = MLP(nInput, nOutput)
-            model_a.load_state_dict(torch.load('model_a.pt'))
-            model_b.load_state_dict(torch.load('model_b.pt'))
+            model_a.load_state_dict(torch.load('models/model_a_510.pt'))
+            model_b.load_state_dict(torch.load('models/model_b_510.pt'))
             self.model_a = model_a
             self.model_b = model_b
         if a_means is None or b_means is None:
-            train_data_a = scipy.io.loadmat('data_a_2.mat')
-            train_data_b = scipy.io.loadmat('data_b_2.mat')
+            train_data_a = scipy.io.loadmat('models/data_a_2_510.mat')
+            train_data_b = scipy.io.loadmat('models/data_b_2_510.mat')
             self.a_means = torch.tensor(train_data_a['means'])
             self.b_means = torch.tensor(train_data_b['means'])
+            self.FREQS = torch.tensor(train_data_b['freqs'])
+            self.MEAN_SPEED = torch.tensor(train_data_b['speeds'])
         pass
         self.dt = dt
         self.shuffle_flag = False
+
+
+    def sim(self, robot1_start, robot1_end, robot2_start, robot2_end, ctrl):
+
+      
+        #test with a random da and db
+
+        #limits for robot position
+        XMIN = 10
+        XMAX = 60
+        YMIN = 20
+        YMAX = 70
+
+
+        a0 = torch.tensor(robot1_start)
+        a1 = torch.tensor(robot1_end)
+        b0 = torch.tensor(robot2_start)
+        b1 = torch.tensor(robot2_end)
+        
+        
+        # a0 = torch.tensor([(XMAX-XMIN)*np.random.rand() + XMIN, (YMAX-YMIN)*np.random.rand() + YMIN])
+        # a1 = torch.tensor([(XMAX-XMIN)*np.random.rand() + XMIN, (YMAX-YMIN)*np.random.rand() + YMIN])
+        # b0 = torch.tensor([(XMAX-XMIN)*np.random.rand() + XMIN, (YMAX-YMIN)*np.random.rand() + YMIN])
+        # b1 = torch.tensor([(XMAX-XMIN)*np.random.rand() + XMIN, (YMAX-YMIN)*np.random.rand() + YMIN])
+
+        start_a, = plt.plot(a0[0].detach().numpy(), a0[1].detach().numpy(), color = 'r', marker = 's', label = 'ubot A start')
+        goal_a, = plt.plot(a1[0].detach().numpy(), a1[1].detach().numpy(), color = 'r', marker = 'x', label = 'ubot A goal')
+        start_b, = plt.plot(b0[0].detach().numpy(), b0[1].detach().numpy(), color = 'b', marker = 's', label = 'ubot B start')
+        goal_b, = plt.plot(b1[0].detach().numpy(), b1[1].detach().numpy(), color = 'b', marker = 'x', label = 'ubot B goal')
+
+        da = a1 - a0
+        db = b1 - b0
+        print(da)
+        print(db)
+
+        print("ctrl = ",ctrl)
+        #ctrl = torch.tensor(ctrl).unsqueeze(-1)
+
+        speeds_a = self.interp1d(self.FREQS, self.MEAN_SPEED[0,:], torch.round(ctrl[:,0:2])).squeeze()
+        speeds_b = self.interp1d(self.FREQS, self.MEAN_SPEED[1,:], torch.round(ctrl[:,0:2])).squeeze()
+        angles = ctrl[:,2:4]
+        deltaTimes = ctrl[:,4:6]
+
+        delta_a = torch.zeros(2)
+        delta_b = torch.zeros(2)
+
+        delta_a[0] = torch.sum(speeds_a * torch.cos(angles) * deltaTimes) #x
+        delta_a[1] = torch.sum(speeds_a * torch.sin(angles) * deltaTimes) #y
+        delta_b[0] = torch.sum(speeds_b * torch.cos(angles) * deltaTimes) #x
+        delta_b[1] = torch.sum(speeds_b * torch.sin(angles) * deltaTimes) #y
+
+        numSteps = self.rep
+        deltaTimes = deltaTimes / numSteps
+        pos_a = np.zeros((2,2*numSteps+1))
+        pos_b = np.zeros((2,2*numSteps+1))
+        pos_a[:,0] = a0
+        pos_b[:,0] = b0
+
+
+        for i in range(1,numSteps+1):
+
+            
+            pos_a[0,2*i-1] = pos_a[0,2*i-2] + speeds_a[0] * torch.cos(angles[0,0]) * deltaTimes[0,0] #x
+            pos_a[1,2*i-1] = pos_a[1,2*i-2] + speeds_a[0] * torch.sin(angles[0,0]) * deltaTimes[0,0] #y
+            pos_b[0,2*i-1] = pos_b[0,2*i-2] + speeds_b[0] * torch.cos(angles[0,0]) * deltaTimes[0,0] #x
+            pos_b[1,2*i-1] = pos_b[1,2*i-2] + speeds_b[0] * torch.sin(angles[0,0]) * deltaTimes[0,0] #y
+
+            pos_a[0,2*i] = pos_a[0,2*i-1] + speeds_a[1] * torch.cos(angles[0,1]) * deltaTimes[0,1] #x
+            pos_a[1,2*i] = pos_a[1,2*i-1] + speeds_a[1] * torch.sin(angles[0,1]) * deltaTimes[0,1] #y
+            pos_b[0,2*i] = pos_b[0,2*i-1] + speeds_b[1] * torch.cos(angles[0,1]) * deltaTimes[0,1] #x
+            pos_b[1,2*i] = pos_b[1,2*i-1] + speeds_b[1] * torch.sin(angles[0,1]) * deltaTimes[0,1] #y
+
+
+
+        plt.scatter(pos_a[0,:], pos_a[1,:], color = 'r', marker = '.')
+        plt.scatter(pos_b[0,:], pos_b[1,:], color = 'b', marker = '.')
+        traj1, = plt.plot(pos_a[0,:], pos_a[1,:], color = 'r', marker = '.', label = 'ubot A')
+        traj2, = plt.plot(pos_b[0,:], pos_b[1,:], color = 'b', marker = '.', label = 'ubot B')
+
+        plt.legend(handles=[start_a, goal_a, start_b, goal_b])
+        
+        plt.ylim([0, 2048])
+        plt.xlim([0, 2448])
+        plt.show()
+        print(delta_a)
+        print(delta_b)
+
 
     def getControl(self,Dx):#da, db):
 
@@ -285,43 +377,52 @@ class MLP_controller(object):
             # Use the shuffled indices to shuffle the array
             freqs = freqs[indices]
             alphas = alphas[indices] 
-        return freqs, alphas
+
+        return freqs, alphas, ctrl
 
     def discretization(self,u,Nc = 10):
-        u = u[0]
-
-        if u[0].item() <=2:
-            u[0] = 15
-        
-        if u[1].item() <=2:
-            u[1] = 15
-
         
         
         print("u = ", u)
+        u = u[0]
 
-        #DTs_time1 = u[-1].item()/self.dt
-        #DTs_time2 = u[-2].item()/self.dt
 
-        DTs_time1 = 100
-        DTs_time2 = 150
+        DTs_time1 = u[-2].item()/self.dt
+        DTs_time2 = u[-1].item()/self.dt
+        
+
+
+        freqs1 = np.repeat(u[0].item(), DTs_time1)
+        print("\n\nfreqs1 = ", freqs1)
+        freqs2 = np.repeat(u[1].item(), DTs_time2)
+        alphas1 = np.repeat(u[2].item(), DTs_time1)
+        alphas2 = np.repeat(u[3].item(), DTs_time2)
+
+        freqs_array = np.array(list(freqs1) + list(freqs2))
+
+        alphas_array = np.array(list(alphas1) + list(alphas2))
+
+
 
         
         print("DTs = ", DTs_time1,DTs_time2)
         
-        if not self.shuffle_flag:
-            freqs = self.merge_elments(elm1 = u[0].item(), elm2 = u[1].item(), T1 = DTs_time1 , T2 = DTs_time2, N = 5)
-            alphas =  self.merge_elments(elm1 = u[2].item(), elm2 = u[3].item(), T1 = DTs_time1 , T2 = DTs_time2, N = 5)
-        else: 
-            freqs = np.zeros(int(DTs_time1+DTs_time2))
-            alphas = np.zeros(int(DTs_time1+DTs_time2))
-            # frequincy sequence:
-            freqs[0:int(DTs_time1)] = u[0].item()
-            freqs[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[1].item()
-            # heading sequence:  
-            alphas[0:int(DTs_time1)] = u[2].item()
-            alphas[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[3].item()
-        return freqs, alphas 
+        # if not self.shuffle_flag:
+        #     freqs = self.merge_elments(elm1 = u[0].item(), elm2 = u[1].item(), T1 = DTs_time1 , T2 = DTs_time2, N = self.N)
+        #     alphas =  self.merge_elments(elm1 = u[2].item(), elm2 = u[3].item(), T1 = DTs_time1 , T2 = DTs_time2, N = self.N)
+        # else: 
+        #     freqs = np.zeros(int(DTs_time1+DTs_time2))
+        #     alphas = np.zeros(int(DTs_time1+DTs_time2))
+        #     # frequincy sequence:
+        #     freqs[0:int(DTs_time1)] = u[0].item()
+        #     freqs[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[1].item()
+        #     # heading sequence:  
+        #     alphas[0:int(DTs_time1)] = u[2].item()
+        #     alphas[int(DTs_time1+1):int(DTs_time1+DTs_time2)] = u[3].item()
+
+        return freqs_array, alphas_array
+
+
 
     def merge_elments(self,elm1, elm2, T1, T2, N = 5):
    
@@ -350,6 +451,8 @@ class MLP_controller(object):
         u = list(np.tile(u1,rep))
         [u.append(elem) for elem in u1_resd]
         [u.append(elem) for elem in u2_resd]
+
+        self.rep = rep
         return np.array(u) 
 # ---------------------------
 
@@ -358,6 +461,7 @@ class MLP_controller(object):
 
 
 def main(): 
+
     mlpC = MLP_controller()
     mlpC.discretization(u  = np.array([1,2,.1,.2,5,6]))  
 

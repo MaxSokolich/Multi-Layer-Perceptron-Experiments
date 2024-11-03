@@ -36,6 +36,10 @@ from classes.record_class import RecordThread
 from classes.algorithm_class import control_algorithm
 from classes.projection_class import AxisProjection
 
+
+
+
+
 class MainWindow(QtWidgets.QMainWindow):
     positionChanged = QtCore.pyqtSignal(QtCore.QPoint)
 
@@ -140,18 +144,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.choosevideobutton.clicked.connect(self.selectFile)
 
         self.ui.algorithbutton.clicked.connect(self.apply_algorithm)
+        self.ui.resetalgorithmbutton.clicked.connect(self.show_sim)
+        
 
-
-
-
-
-
-
-
-  
-
-  
-       
 
 
     def apply_algorithm(self):
@@ -159,13 +154,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.algorithbutton.setText("Stop")
             self.algorithm_status = True
             
-            p1 = self.tracker.robot_list[0].position_list[-1]
-            p2 = self.tracker.robot_list[1].position_list[-1]
+            p1 = self.tracker.robot_list[0].position_list[-1] #robot1 start [x1, y1]
+            p2 = self.tracker.robot_list[1].position_list[-1] #robot2 start
 
-            t1 = self.tracker.robot_list[0].trajectory[0]
-            t2 = self.tracker.robot_list[1].trajectory[0]
+            t1 = self.tracker.robot_list[0].trajectory[0]      #robot1 target
+            t2 = self.tracker.robot_list[1].trajectory[0]      #robot2 target
 
-
+         
             self.algorithm = control_algorithm(p1,p2,t1,t2)
 
             self.algorithm.my_mlp_controller.N = self.ui.Nbox.value()
@@ -180,6 +175,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
+    def show_sim(self):
+        pass
+
+        
+        
+
 
     def update_image(self, frame, robot_list):
         """Updates the image_label with a new opencv image"""
@@ -191,6 +192,7 @@ class MainWindow(QtWidgets.QMainWindow):
             frame, Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq = self.algorithm.run(robot_list, frame)
             
             self.arduino.send(Bx, By, Bz, alpha, gamma, freq, psi, gradient, acoustic_freq)
+            
             frame, self.projection.draw_sideview(frame,Bx,By,Bz,alpha,gamma,self.video_width,self.video_height)
             frame, self.projection.draw_topview(frame,Bx,By,Bz,alpha,gamma,self.video_width,self.video_height)
             
@@ -357,7 +359,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         robot.add_stuck_status(0)
                         robot.crop_length = self.ui.robotcroplengthbox.value()
                         self.tracker.robot_list.append(robot) #this has to include tracker.robot_list because I need to add it to that class
-                        
+                        print(self.tracker.robot_list)
         
                
                     
@@ -478,7 +480,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 
                 self.cap  = EasyPySpin.VideoCapture(0)
                 self.cap.set(cv2.CAP_PROP_AUTO_WB, True)
-                self.cap.set(cv2.CAP_PROP_FPS, 10)
+                self.cap.set(cv2.CAP_PROP_FPS, 24)
                 #self.cap.set(cv2.CAP_PROP_FPS, 30)
             except Exception:
                 self.cap  = cv2.VideoCapture(0) 

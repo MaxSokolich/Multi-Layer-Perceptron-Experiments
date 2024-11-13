@@ -23,11 +23,11 @@ Customizations:
 To train the RL agent, use
 
 ```shell
-$ python ubots_gym.py'
+$ python ubots_gym.py
 ```
 
 and evaluate trained agent with
 
 ```shell
-$ python ubots_gym.py --eval'
+$ python ubots_gym.py --eval
 ```

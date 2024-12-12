@@ -29,6 +29,7 @@ class uBotsSim(object):
     def run_animation(self, f, alpha, frames=200, interval=50):
         self.f = f
         self.alpha = alpha
+        print(f'f,alpha={self.f, self.alpha}')
         ani = animation.FuncAnimation(self.fig, self.animate, frames=frames, interval=interval, blit=True)
         plt.show()
 

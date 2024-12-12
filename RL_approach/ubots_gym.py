@@ -168,10 +168,11 @@ class uBotsGym(gym.Env):
         successes = sum(np.array([d0, d1]) <= eps)
 
         # Calculate rewards
-        # reward = -10.0 * (d0 + d1) + successes
+        reward = -10.0 * (d0 + d1) + successes
         # reward = 10.0 * (np.exp(-d0) + np.exp(-d1))
         # reward = -1.0 * (np.exp(d0) + np.exp(d1))        
-        reward = (1.0 - np.tanh(d0)) + (1.0 - np.tanh(d1))
+        # reward = (1.0 - np.tanh(d0)) + (1.0 - np.tanh(d1))
+        
 
         return reward, successes
     
@@ -263,7 +264,7 @@ def train(alg='ppo', env_kwargs=None):
     model.set_logger(tb_logger)
 
     # train the model
-    model.learn(1_000_000, progress_bar=True)
+    model.learn(5_000_000, progress_bar=True)
 
     model.save(models_dir / f"{alg}_ubots")
     del model

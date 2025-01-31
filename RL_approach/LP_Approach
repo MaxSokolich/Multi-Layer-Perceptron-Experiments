@@ -1,0 +1,218 @@
+import numpy as np
+import numpy as np
+import matplotlib.pyplot as plt
+import gurobipy as gp
+from gurobipy import GRB
+import sys
+import scipy.io as sio
+import os
+
+
+def get_all_commands():
+    freqs = np.linspace(1, 20, 20)
+    alphas = np.arange(0, 2 * np.pi, np.pi / 16)
+    vs = [[
+        2.72, 4.06, 5.80, 6.81, 9.07, 9.46, 11.32, 11.95, 14.11, 14.49, 16.15,
+        16.49, 17.30, 17.09, 18.35, 19.68, 19.45, 21.39, 22.50, 23.65
+    ],
+        [
+            16.62, 27.30, 37.71, 48.13, 58.72, 66.67, 78.15, 84.48, 96.43,
+            108.05, 119.22, 120.53, 127.00, 133.90, 131.50, 151.17, 153.06,
+            161.49, 170.00, 170.95
+        ]]
+
+    vs_sampled = vs
+    nsize = len(vs_sampled[0])
+    all_commands = []
+    for i in range(nsize):
+        speed1 = vs[0][i]
+        speed2 = vs[1][i]
+        for ia in range(len(alphas)):
+            v = np.array([
+                speed1 * np.cos(alphas[ia]), speed1 * np.sin(alphas[ia]),
+                speed2 * np.cos(alphas[ia]), speed2 * np.sin(alphas[ia])
+            ])
+            all_commands.append(v)
+
+    all_commands = np.array(all_commands)
+    return all_commands
+
+# all_commands = get_all_commands()
+# np.save('all_commands.npy', all_commands)
+def LP(initial_configuration, final_configuration, all_commands, plot = False):
+    # positions1 = np.load('postions.npy')
+  
+    # initial_configuration = np.array([20, 7.6 , 8.1 , 20])
+    # final_configuration = np.array([25 ,-42 , 7 , 30])
+    # initial_configuration = np.array([2.1, 3.1 , 3.1 , 5.1])
+    # final_configuration = np.array([4.1 ,3.1 , 15.1 , 5.1])
+
+
+    # initial_configuration = np.array([1.1, 1.1 , -10.1 , -1.1])
+    # initial_configuration = positions1[-7]
+    # final_configuration = np.array([1.1 ,12.1 , 30.1 , 35.1])
+    # initial_configuration= np.random.uniform(-10, 10, (4))
+    # final_configuration= np.random.uniform(-10, 10, (4))
+    size_T = len(all_commands)
+    m = gp.Model()
+    T = m.addMVar(size_T,ub = 100, lb = 0, name= 'Time periods')
+    # z = m.addMVar((4,size_T), name= "abs_value")
+    b = m.addVar(lb =0, ub= 10**2)
+    bounds = m.addMVar(4, lb=0, name="bounds")  # Bounds for constraints
+    for i in range(4):
+        m.addConstr(bounds[i] == b) 
+    max_abs_goal = 0.1
+    error_margin = m.addMVar(4,ub = max_abs_goal, lb = -max_abs_goal, name= 'error_margin')
+
+
+    abs_error = m.addMVar(4, lb=0, name="abs_error")
+
+    # Add constraints to represent absolute value
+    for i in range(4):
+        m.addConstr(abs_error[i] >= error_margin[i])   # abs_error >= error_margin
+        m.addConstr(abs_error[i] >= -error_margin[i])  # abs_error >= -error_margin
+
+
+    m.addConstr(initial_configuration+all_commands.T@T == final_configuration+error_margin)
+
+    for i in range(1,size_T):
+        m.addConstr(initial_configuration+all_commands.T[:,:i]@T[:i] <= bounds)
+        m.addConstr(-bounds<=initial_configuration+all_commands.T[:,:i]@T[:i] )
+
+    cost = gp.quicksum(np.linalg.norm(all_commands[i])*T[i] for i in range(size_T))
+    cost = 10*b
+    cost += gp.quicksum(T)
+    cost += gp.quicksum(1*abs_error)
+    for i, v in enumerate(all_commands):
+        m.addConstr(np.linalg.norm(v)*T[i] <= 100)
+    
+    m.update()
+    m.setObjective(cost, sense=gp.GRB.MINIMIZE)
+
+
+
+    m.update()
+    # m.params.NonConvex = 2
+    m.optimize()
+    if m.Status == gp.GRB.OPTIMAL:
+        print(T.X)
+        print('abs error',error_margin.X )
+        print(f"Optimal solution found in {m.Runtime:.4f} seconds.")
+
+        T_values = T.X  # This is your solution for time periods
+        dominated_command_arg = np.argmax(T_values)
+        dominated_command = all_commands[dominated_command_arg]
+        print('dominated_command',dominated_command)
+        dominated_command_speed = np.linalg.norm(dominated_command[0:2])
+        dominated_command_speed1 = np.linalg.norm(dominated_command[2:4])
+        dominated_command_angle = np.arctan2(dominated_command[1], dominated_command[0])
+
+
+        all_commands = np.array(all_commands)
+        non_zero_T = np.where(T_values > 0)[0]
+        print('num_steps', len([non_zero_T[0]]))
+        # Calculate the positions over time
+        positions = [initial_configuration]  # Start with the initial configuration
+        current_position = initial_configuration.copy()
+        commnads = []
+        time_applied = []
+        # T_values_copy = T_values.copy()
+        for i in  non_zero_T:
+            # arg = np.argmax(T_values_copy)
+            arg = i
+            # T_values_copy[arg] = 0
+            current_position += (all_commands[arg] * T_values[arg]).flatten()
+            commnads.append(all_commands[arg])
+            positions.append(current_position.copy())
+            time_applied.append(T_values[arg])
+
+        # np.save('commands.npy', commnads)
+        # np.save('time_periods.npy', non_zero_T)
+        # Separate positions for each robot
+        positions = np.array(positions)
+        robot1_positions = positions[:, :2]  # First two entries are for robot 1
+        robot2_positions = positions[:, 2:]  # Last two entries are for robot 2
+        # np.save('postions.npy', positions)
+        
+        if plot:
+            # Plotting
+            plt.figure(figsize=(10, 6))
+
+            # Plot initial and final positions
+            plt.scatter(initial_configuration[0], initial_configuration[1], color='green', label='Robot 1 Start', s=100)
+            plt.scatter(final_configuration[0], final_configuration[1], color='cyan', label='Robot 1 End', s=100)
+            plt.scatter(initial_configuration[2], initial_configuration[3], color='yellow', label='Robot 2 Start', s=100)
+            plt.scatter(final_configuration[2], final_configuration[3], color='orange', label='Robot 2 End', s=100)
+
+            # Plot paths
+            plt.plot(robot1_positions[:, 0], robot1_positions[:, 1], '-o', color='blue', label='Robot 1 Path')
+            plt.plot(robot2_positions[:, 0], robot2_positions[:, 1], '-o', color='red', label='Robot 2 Path')
+
+            plt.xlabel("X Position")
+            plt.ylabel("Y Position")
+            plt.title("Optimal Paths for Robots in 2D Space")
+            plt.legend()
+            plt.grid()
+            plt.show()
+
+    else:
+        positions, commnads, time_applied = [], [] ,[]
+
+
+    return positions, commnads, time_applied
+
+def discrete_path(positions, command, dx = 4):
+    path = []
+    applied_commands = []
+    for i in range(len(positions)-1):
+        p1 = positions[i]
+        p2 = positions[i+1]
+        v = p2 - p1
+        n = int(np.linalg.norm(v)/dx)
+        v = v/n
+        for j in range(n):
+            applied_commands.append(command[i])
+            path.append(p1 + j*v)
+    
+    return np.array(path), np.array(applied_commands)
+
+# initial_configuration = np.array([1.1, 1.1 , -10.1 , -1.1])
+# initial_configuration = positions1[-7]
+final_configuration = np.array([1.1 ,12.1 , 30.1 , 35.1])
+all_commands = np.load('all_commands.npy')
+# positions, commnads, time_applied = LP(initial_configuration, final_configuration, all_commands)
+# path, applied_commands = discrete_path(positions, commnads)
+# print(path.shape, applied_commands.shape)
+counter0 = 0
+   
+all_pos=np.array([])
+all_u = np.array([])
+for i in range(500):
+    initial_configuration = np.random.uniform(-20, 20, 4)
+
+
+    positions, commnads, time_applied = LP(initial_configuration, final_configuration, all_commands, plot = False)
+    
+    if len(positions) > 0:
+        pathd, applied_commandsd = discrete_path(positions, commnads)
+        if len(all_pos) == 0:
+            all_pos = pathd
+            all_u = applied_commandsd
+        else:
+            all_pos = np.vstack((all_pos, pathd))
+            all_u = np.vstack((all_u, applied_commandsd))
+        counter0 += 1
+        print('num lp', counter0)
+
+    
+    np.save('all_u.npy', all_u)
+    np.save('all_pos.npy', all_pos)
+    print('iter = ',str(i))
+
+
+np.save('all_u.npy', all_u)
+np.save('all_pos.npy', all_pos)
+print('data_size = ',len(all_pos))
+
+        
+        

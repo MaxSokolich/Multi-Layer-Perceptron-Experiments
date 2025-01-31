@@ -20,8 +20,10 @@ class uBotsSim(object):
         self.ax.set_xlim(self.XMIN, self.XMAX)
         self.ax.set_ylim(self.YMIN, self.YMAX)
         self.scat = self.ax.scatter(self.positions[:, 0], self.positions[:, 1])
+        self.model = ALG.load(models_dir / f"{alg}_ubots", env=env)
 
     def animate(self, frame):
+        action, _ = model.predict(obs, deterministic=True)
         self.step(self.f, self.alpha)
         self.scat.set_offsets(self.positions)
         return self.scat,

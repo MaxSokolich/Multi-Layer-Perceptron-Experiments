@@ -55,13 +55,28 @@ class uBotsGym(gym.Env):
         self.render_mode = render_mode
 
         # Set observation and action spaces
-        self.observation_space = Box(
-            low=np.array([[XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
-            high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
-            shape=(N, 2),
-            dtype=np.float32)
+        # self.observation_space = Box(
+        #     low=np.array([[XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
+        #     high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
+        #     shape=(N, 2),
+        #     dtype=np.float32)
+        
+        self.observation_space = gym.spaces.Dict(
+            {
+                "agents": Box(
+                    low=np.array([[XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
+                    high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
+                    shape=(N, 2),
+                    dtype=np.float32),
+                "goals": Box(
+                    low=np.array([[XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
+                    high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
+                    shape=(N, 2),
+                    dtype=np.float32)
+            }
+        )
         self.action_space = Box(low=np.array([0, -np.pi]),
-                                high=np.array([1, np.pi]))
+                                high=np.array([24, np.pi]))
 
         # Create matplotlib figure if rendering
         if render_mode == "human":
@@ -79,7 +94,8 @@ class uBotsGym(gym.Env):
         # create initial robot locations
         self.positions = self._get_init_robot_pos()
         
-        obs = deepcopy(self.positions)
+        # obs = deepcopy(self.positions)
+        obs = {"agents": deepcopy(self.positions), "goals": self._get_goal()}
 
         info = {'horizon': self.horizon, 'is_success': False}
 
@@ -99,8 +115,9 @@ class uBotsGym(gym.Env):
                                         c='g')
 
             # show the robot positions
-            self.scat = self.ax.scatter(self.positions[:, 0],
-                                        self.positions[:, 1],
+            positions = np.vstack(self.positions)
+            self.scat = self.ax.scatter(positions[:, 0],
+                                        positions[:, 1],
                                         c='b')
 
         return obs, info
@@ -120,7 +137,8 @@ class uBotsGym(gym.Env):
 
         self._steps_elapsed += 1
 
-        obs = deepcopy(self.positions)
+        # obs = deepcopy(self.positions)
+        obs = {"agents": deepcopy(self.positions), "goals": self._get_goal()}
 
         # Get reward and number of robots successfully reached their goals
         reward, successes = self._get_reward(obs)
@@ -157,6 +175,7 @@ class uBotsGym(gym.Env):
             reward: the reward as a function of distance to goals
             successes: number of robots that successfully reached their corresponding goals            
         """
+        obs = obs["agents"]
         rob0_pos = obs[0]
         rob1_pos = obs[1]
 
@@ -216,7 +235,7 @@ def run_one_episode():
         # action = env.action_space.sample()
         action = (0.1, np.pi / 4)
         obs, reward, terminated, truncated, info = env.step(action)
-        env.render()
+        # env.render()
     env.close()
 
 
@@ -231,19 +250,20 @@ def train(alg='ppo', env_kwargs=None):
     '''RL training function'''
 
     # Create environment. Multiple parallel/vectorized environments for faster training
-    env = make_vec_env(make_single_env(env_kwargs), n_envs=48)
+    env = make_vec_env(make_single_env(env_kwargs), n_envs=50)
 
     if alg == 'ppo':
         # PPO: on-policy RL
-        policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
-        model = PPO("MlpPolicy", env, policy_kwargs=policy_kwargs, verbose=1)
+        # policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
+        policy_kwargs = dict(net_arch=[64, 64, 64, 64])
+        model = PPO("MultiInputPolicy", env, policy_kwargs=policy_kwargs, verbose=1)
 
     else:
         # off-policy RL
         # policy_kwargs = dict(net_arch=dict(pi=[256, 256], qf=[256, 256]))
         policy_kwargs = dict(net_arch=[64, 64, 64, 64])
         model = SAC(
-            "MlpPolicy",
+            "MultiInputPolicy",
             env,
             policy_kwargs=policy_kwargs,
             # use_sde=True,
@@ -314,14 +334,14 @@ if __name__ == '__main__':
     log_dir.mkdir(exist_ok=True)
 
     # set environment params
-    env_kwargs = dict(XMIN=-20,
-                 XMAX=20,
-                 YMIN=-20,
-                 YMAX=20,
-                 horizon=120)
+    env_kwargs = dict(XMIN=-100,
+                 XMAX=100,
+                 YMIN=-100,
+                 YMAX=100,
+                 horizon=500)
 
-    # run_one_episode()
-    alg = ['ppo', 'sac'][1]
+    # run_one_episode(); exit()
+    alg = ['ppo', 'sac'][0]
     if not args.eval:
         # if training
         train(alg, env_kwargs)

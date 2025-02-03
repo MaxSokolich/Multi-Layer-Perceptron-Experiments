@@ -187,10 +187,10 @@ class uBotsGym(gym.Env):
         successes = sum(np.array([d0, d1]) <= eps)
 
         # Calculate rewards
-        # reward = -10.0 * (d0 + d1) + successes
+        reward = -10.0 * (d0 + d1) + successes
         # reward = 10.0 * (np.exp(-d0) + np.exp(-d1))
         # reward = -1.0 * (np.exp(d0) + np.exp(d1))        
-        reward = (1.0 - np.tanh(d0)) + (1.0 - np.tanh(d1))
+        # reward = (1.0 - np.tanh(d0)) + (1.0 - np.tanh(d1))
 
         return reward, successes
     
@@ -250,7 +250,7 @@ def train(alg='ppo', env_kwargs=None):
     '''RL training function'''
 
     # Create environment. Multiple parallel/vectorized environments for faster training
-    env = make_vec_env(make_single_env(env_kwargs), n_envs=50)
+    env = make_vec_env(make_single_env(env_kwargs), n_envs=32)
 
     if alg == 'ppo':
         # PPO: on-policy RL
@@ -268,9 +268,9 @@ def train(alg='ppo', env_kwargs=None):
             policy_kwargs=policy_kwargs,
             # use_sde=True,
             # sde_sample_freq=8,
-            learning_rate=0.001,
+            learning_rate=0.0003,
             learning_starts=1000,
-            batch_size=2048,
+            batch_size=512,
             tau=0.05,
             gamma=0.95,
             # gradient_steps=1,
@@ -338,10 +338,10 @@ if __name__ == '__main__':
                  XMAX=100,
                  YMIN=-100,
                  YMAX=100,
-                 horizon=500)
+                 horizon=200)
 
     # run_one_episode(); exit()
-    alg = ['ppo', 'sac'][0]
+    alg = ['ppo', 'sac'][1]
     if not args.eval:
         # if training
         train(alg, env_kwargs)

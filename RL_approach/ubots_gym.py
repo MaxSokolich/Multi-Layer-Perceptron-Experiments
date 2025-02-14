@@ -9,8 +9,8 @@ from copy import deepcopy
 import torch as th
 import numpy as np
 import matplotlib.pyplot as plt
-import gurobipy as gp
-from gurobipy import GRB
+# import gurobipy as gp
+# from gurobipy import GRB
 import sys
 import scipy.io as sio
 import os
@@ -97,15 +97,23 @@ class uBotsGym(gym.Env):
         vmax  = np.max(np.array(self.LOOKUP_TABLE).flatten())
         # Set observation and action spaces
         self.observation_space = Box(
-            low=np.array([[XMIN, YMIN], [XMIN, YMIN], [0,0], [0,0]]),  # Lower bounds for (x, y) of each robot
-            high=np.array([[XMAX, YMAX], [XMAX, YMAX], [vmax,vmax], [vmax,vmax]]),  # Upper bounds for (x, y) of each robot
+            low=np.array([[XMIN, YMIN], [XMIN, YMIN], [XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
+            high=np.array([[XMAX, YMAX], [XMAX, YMAX], [XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
             shape=(int(2*N), 2),
             dtype=np.float32)
         
-        # self.action_space = Box(low=np.array([0, -np.pi]),
-        #                             high=np.array([1, np.pi]), shape=(2,), dtype=np.float32)
-        self.action_space = Box(low=np.array([0, 0]),
-                                    high=np.array([1, 1]), shape=(2,), dtype=np.float32)
+
+
+        # self.observation_space = Box(
+        #     low=np.array([[XMIN, YMIN], [XMIN, YMIN], [0,0], [0,0]]),  # Lower bounds for (x, y) of each robot
+        #     high=np.array([[XMAX, YMAX], [XMAX, YMAX], [vmax, vmax], [vmax, vmax]]),  # Upper bounds for (x, y) of each robot
+        #     shape=(int(2*N), 2),
+        #     dtype=np.float32)
+        
+        self.action_space = Box(low=np.array([0, -np.pi]),
+                                    high=np.array([19, np.pi]), shape=(2,), dtype=np.float32)
+        # self.action_space = Box(low=np.array([0, 0]),
+                                    # high=np.array([1, 1]), shape=(2,), dtype=np.float32)
 
         # Create matplotlib figure if rendering
         # self.gen_discrete_commands_LP()
@@ -221,7 +229,8 @@ class uBotsGym(gym.Env):
         obs = deepcopy(self.positions)
         
         # Add robot speeds to observation numpy array
-        obs = np.append(obs, np.zeros((self.N, 2)), axis=0)
+        # obs = np.append(obs, np.zeros((self.N, 2)), axis=0)
+        obs = np.append(obs, np.array([self.goal0_pos, self.goal1_pos]), axis=0)
         # print("Initial positions: ", obs)
         
         
@@ -248,12 +257,18 @@ class uBotsGym(gym.Env):
                                         self.positions[:, 1],
                                         c='b')
 
+        
+      
+        # print(f"obs_reset: {obs}", 'shape:', obs.shape)
+      
+        # print("info: ", info)
         return obs, info
 
     def step(self, action):
         # the action[0] is between 0 and 1 but I want to map it to an index between 0 and 19
-        action[0] = np.floor(action[0] * 19)
-        action[1] = action[1] * 2 * np.pi - np.pi
+        # action[0] = np.floor(action[0] * 19)
+        # action[1] = action[1] * 2 * np.pi - np.pi
+        print(f"action: {action}", 'shape:', action.shape)
 
         f, alpha = action
         new_positions = []
@@ -272,7 +287,9 @@ class uBotsGym(gym.Env):
         self._steps_elapsed += 1
         obs = deepcopy(self.positions)
         vel = np.array([speeds * np.array([np.cos(alpha), np.sin(alpha)]) for speeds in speeds])
-        obs = np.append(obs, np.array(vel), axis=0)  
+        # obs = np.append(obs, np.array(vel), axis=0)  
+        print(f"obs: {obs}", 'shape:', obs.shape)
+        obs = np.append(obs, np.array([self.goal0_pos, self.goal1_pos]), axis=0)
         # print("New positions: ", obs)
         # obs = np.array(obs).flatten()
         if not self.check_in_bounds():
@@ -293,7 +310,11 @@ class uBotsGym(gym.Env):
             info = {'is_success': successes >= 2, 'n_successes': successes}
             
             truncated = True if (self._steps_elapsed >= self.horizon) else False
-
+            
+       
+       
+        
+        # print("info: ", info)
         return obs, reward, terminated, truncated, info
 
     def render(self):
@@ -338,11 +359,11 @@ class uBotsGym(gym.Env):
         # freq_similarity = -np.linalg.norm(self.LOOKUP_TABLE[0][int(arg)] - self.LOOKUP_TABLE[0][int(expert_command[0])])
         # -np.linalg.norm(self.LOOKUP_TABLE[1][int(arg)] - self.LOOKUP_TABLE[1][int(expert_command[0])])
         minimum_distance_to_boundary = self.min_distance_to_boundary()
-        penalty_to_boundry = -20*np.exp(0.1*minimum_distance_to_boundary)
-        reward = 80*end_goal -2*minimum_distance_to_path(self.expert_trj,np.array([rob0_pos, rob1_pos]).flatten())+penalty_to_boundry
+        penalty_to_boundry = -20*np.exp(-0.1*minimum_distance_to_boundary)
+        reward = 80*end_goal -8*minimum_distance_to_path(self.expert_trj,np.array([rob0_pos, rob1_pos]).flatten())+penalty_to_boundry
         # reward = -1.0 * (np.exp(d0) + np.exp(d1))        
         # reward = (1.0 - np.tanh(d0)) + (1.0 - np.tanh(d1))
-        
+        print(f"Reward: {reward}")
 
         return reward, successes
     
@@ -533,10 +554,163 @@ def evaluate(alg, env_kwargs, n_trials=10):
         while not done:
             action, _ = model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
+            print(f"Reward: {reward}")
+            print(f"obs: {obs}", 'shape:', obs.shape)
+            print(f"action: {action}", 'shape:', action.shape)
+            print("info: ", info)
             done = terminated or truncated
             env.render()
         print(f"Trial: {trial}, Success: {info['is_success']}, # Successes = {info['n_successes']}")
     env.close()
+
+
+
+
+def test_custom_network(env_kwargs, n_trials=10, device='cpu', type ='cont'):
+    '''Load a trained PyTorch model and test its performance in the environment'''
+
+    # Load the environment
+    env = uBotsGym(N=2, render_mode="human", **env_kwargs)
+
+    # Load the trained neural network
+    
+    if type == "disc":
+
+        model = MLP(input_size=4, num_discrete_actions=20).to(device) # Must match the original model architecture
+
+        # Load the saved state dictionary
+        model.load_state_dict(th.load("mlp_model.pth"))
+        
+        model.eval()  # Set to evaluation mode
+
+        # Run multiple trials
+        for trial in range(n_trials):
+            obs, info = env.reset()
+            obs = obs[0:2].flatten()
+            obs = th.tensor(obs, dtype=th.float32, device=device).unsqueeze(0)  # Add batch dimension
+
+            done = False
+            while not done:
+                with th.no_grad():  # No gradients needed for inference
+                    state = th.tensor(obs, dtype=th.float32).flatten().to(device).unsqueeze(0)
+                    action,heading = model.infer_action(state)  # Predict action
+                obs, reward, terminated, truncated, info = env.step(np.array([action, heading]))
+                obs = obs[0:2].flatten()
+                obs = th.tensor(obs, dtype=th.float32, device=device).unsqueeze(0)  # Add batch dimension
+                # obs = th.tensor(obs, dtype=th.float32, device=device).unsqueeze(0)  # Update obs for next step
+                done = terminated or truncated
+                env.render()
+
+            print(f"Trial {trial + 1}: Success = {info['is_success']}, # Successes = {info['n_successes']}")
+
+    if type == "cont":
+        model = MLP_continuous(input_size=4, output_size=2).to(device) # Must match the original model architecture
+
+        # Load the saved state dictionary
+        model.load_state_dict(th.load("mlp_model_continuous.pth"))
+        
+        model.eval()  # Set to evaluation mode
+        for trial in range(n_trials):
+            obs, info = env.reset()
+            obs = obs[0:2].flatten()
+            obs = th.tensor(obs, dtype=th.float32, device=device).unsqueeze(0)  # Add batch dimension
+            
+
+            done = False
+            while not done:
+                with th.no_grad():  # No gradients needed for inference
+                    state = th.tensor(obs, dtype=th.float32).flatten().to(device).unsqueeze(0)
+                    action,heading = model(state)  # Predict action
+                obs, reward, terminated, truncated, info = env.step([action.squeeze().numpy(), heading.squeeze().numpy()])
+                obs = obs[0:2].flatten()
+                obs = th.tensor(obs, dtype=th.float32, device=device).unsqueeze(0)  # Add batch dimension
+                # obs = th.tensor(obs, dtype=th.float32, device=device).unsqueeze(0)  # Update obs for next step
+                done = terminated or truncated
+                env.render()
+
+            print(f"Trial {trial + 1}: Success = {info['is_success']}, # Successes = {info['n_successes']}")
+
+    env.close()
+
+
+import torch.nn as nn
+# class MLP(nn.Module):
+#     def __init__(self, input_size=4, output_size=4):
+#         super(MLP, self).__init__()
+#         self.fc1 = nn.Linear(input_size, 64)
+#         self.relu = nn.ReLU()
+#         self.fc2 = nn.Linear(64, 128)
+#         self.fc3 = nn.Linear(128, 256)
+#         self.fc4 = nn.Linear(256, 4)
+    
+#     def forward(self, x):
+#         x = self.fc1(x)
+#         x = self.relu(x)
+#         x = self.fc2(x)
+#         x = self.relu(x)
+#         x = self.fc3(x)
+#         x = self.relu(x)
+#         x = self.fc4(x)
+#         return x
+
+
+
+class MLP_continuous(nn.Module):
+    def __init__(self, input_size=4, output_size=2):
+        super(MLP_continuous, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(64, 128)
+        self.fc3 = nn.Linear(128, 128)
+         
+        # Output layers
+        self.fc_action = nn.Linear(128, 1)  # Discrete action classification
+        self.fc_heading = nn.Linear(128, 1)  # Continuous heading direction
+    
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        x = self.relu(x)
+        action = self.relu(self.fc_action(x))
+        heading = self.fc_heading(x)
+        return action, heading
+
+class MLP(nn.Module):
+    def __init__(self, input_size, hidden_size=128, num_discrete_actions=20):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, int(2*hidden_size))
+        self.fc3 = nn.Linear(int(2*hidden_size), hidden_size)
+        self.relu = nn.ReLU()
+        
+        # Output layers
+        self.fc_action = nn.Linear(hidden_size, num_discrete_actions)  # Discrete action classification
+        self.fc_heading = nn.Linear(hidden_size, 1)  # Continuous heading direction
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        x = self.relu(x)
+        action_logits = self.fc_action(x)  # No activation (will apply softmax in loss function)
+        heading = self.fc_heading(x)  # No activation (direct regression for heading)
+        return action_logits, heading
+    def infer_action(self, state):
+            # Add batch dimension
+        
+        action_logits, heading = self.forward(state)
+        action_logits = action_logits.flatten()
+        action_probabilities = th.softmax(action_logits, dim = 0)
+        action = th.argmax(action_probabilities).item()  # Get the discrete action
+        heading = heading.item()  # Get the continuous heading value
+        return action, heading
+
+
 
 
 if __name__ == '__main__':
@@ -558,10 +732,10 @@ if __name__ == '__main__':
     log_dir.mkdir(exist_ok=True)
 
     # set environment params
-    env_kwargs = dict(XMIN=-200,
-                 XMAX=200,
-                 YMIN=-200, 
-                 YMAX=200,
+    env_kwargs = dict(XMIN=-100,
+                 XMAX=100,
+                 YMIN=-100, 
+                 YMAX=100,
                  horizon=120)
 
     # run_one_episode()
@@ -572,3 +746,4 @@ if __name__ == '__main__':
     else:
         # if evaluating
         evaluate(alg, env_kwargs)
+        test_custom_network( env_kwargs=env_kwargs, n_trials=1, device='cpu',  type ='disc')

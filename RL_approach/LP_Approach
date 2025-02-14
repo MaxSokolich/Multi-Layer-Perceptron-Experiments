@@ -11,6 +11,7 @@ import os
 def get_all_commands():
     freqs = np.linspace(1, 20, 20)
     alphas = np.arange(0, 2 * np.pi, np.pi / 16)
+    frq_map = []
     vs = [[
         2.72, 4.06, 5.80, 6.81, 9.07, 9.46, 11.32, 11.95, 14.11, 14.49, 16.15,
         16.49, 17.30, 17.09, 18.35, 19.68, 19.45, 21.39, 22.50, 23.65
@@ -33,13 +34,15 @@ def get_all_commands():
                 speed2 * np.cos(alphas[ia]), speed2 * np.sin(alphas[ia])
             ])
             all_commands.append(v)
+            frq_map.append([i])
 
     all_commands = np.array(all_commands)
-    return all_commands
+    return all_commands,frq_map
 
-# all_commands = get_all_commands()
+# all_commands, frq_map = get_all_commands()
 # np.save('all_commands.npy', all_commands)
-def LP(initial_configuration, final_configuration, all_commands, plot = False):
+# np.save('frq_map.npy', frq_map)
+def LP(initial_configuration, final_configuration, all_commands, frq_map, plot = False):
     # positions1 = np.load('postions.npy')
   
     # initial_configuration = np.array([20, 7.6 , 8.1 , 20])
@@ -109,6 +112,7 @@ def LP(initial_configuration, final_configuration, all_commands, plot = False):
 
 
         all_commands = np.array(all_commands)
+        frq_map = np.array(frq_map)
         non_zero_T = np.where(T_values > 0)[0]
         print('num_steps', len([non_zero_T[0]]))
         # Calculate the positions over time
@@ -116,6 +120,8 @@ def LP(initial_configuration, final_configuration, all_commands, plot = False):
         current_position = initial_configuration.copy()
         commnads = []
         time_applied = []
+        frq_ls = []
+        alpha_ls = []
         # T_values_copy = T_values.copy()
         for i in  non_zero_T:
             # arg = np.argmax(T_values_copy)
@@ -123,6 +129,8 @@ def LP(initial_configuration, final_configuration, all_commands, plot = False):
             # T_values_copy[arg] = 0
             current_position += (all_commands[arg] * T_values[arg]).flatten()
             commnads.append(all_commands[arg])
+            frq_ls.append(frq_map[arg])
+            alpha_ls.append(np.arctan2(all_commands[arg][1], all_commands[arg][0]))
             positions.append(current_position.copy())
             time_applied.append(T_values[arg])
 
@@ -156,14 +164,15 @@ def LP(initial_configuration, final_configuration, all_commands, plot = False):
             plt.show()
 
     else:
-        positions, commnads, time_applied = [], [] ,[]
+        positions, commnads, frq_ls, alpha_ls, time_applied = [], [] ,[], [], []    
 
 
-    return positions, commnads, time_applied
+    return positions, commnads, frq_ls, alpha_ls, time_applied
 
-def discrete_path(positions, command, dx = 4):
+def discrete_path(positions, frq_ls, alpha_ls, dx = 4):
     path = []
-    applied_commands = []
+    applied_frq = []
+    applied_alpha = []
     for i in range(len(positions)-1):
         p1 = positions[i]
         p2 = positions[i+1]
@@ -171,46 +180,54 @@ def discrete_path(positions, command, dx = 4):
         n = int(np.linalg.norm(v)/dx)
         v = v/n
         for j in range(n):
-            applied_commands.append(command[i])
+            applied_frq.append(frq_ls[i])
+            applied_alpha.append(alpha_ls[i])
             path.append(p1 + j*v)
     
-    return np.array(path), np.array(applied_commands)
+    return np.array(path), np.array(applied_frq), np.array(applied_alpha)
 
 # initial_configuration = np.array([1.1, 1.1 , -10.1 , -1.1])
 # initial_configuration = positions1[-7]
 final_configuration = np.array([1.1 ,12.1 , 30.1 , 35.1])
 all_commands = np.load('all_commands.npy')
+frq_map = np.load('frq_map.npy')
 # positions, commnads, time_applied = LP(initial_configuration, final_configuration, all_commands)
 # path, applied_commands = discrete_path(positions, commnads)
 # print(path.shape, applied_commands.shape)
 counter0 = 0
    
 all_pos=np.array([])
-all_u = np.array([])
-for i in range(500):
+all_frq = np.array([])
+all_alpha = np.array([])
+for i in range(5000):
     initial_configuration = np.random.uniform(-20, 20, 4)
 
 
-    positions, commnads, time_applied = LP(initial_configuration, final_configuration, all_commands, plot = False)
+    positions, commnads, frq_ls, alpha_ls, time_applied = LP(initial_configuration, final_configuration, all_commands,frq_map, plot = False)
     
     if len(positions) > 0:
-        pathd, applied_commandsd = discrete_path(positions, commnads)
+        pathd, applied_f, applied_alpha = discrete_path(positions, frq_ls, alpha_ls)
         if len(all_pos) == 0:
             all_pos = pathd
-            all_u = applied_commandsd
+            all_frq = applied_f.flatten()
+            all_alpha = applied_alpha.flatten()
         else:
             all_pos = np.vstack((all_pos, pathd))
-            all_u = np.vstack((all_u, applied_commandsd))
+            all_frq = np.hstack((all_frq, applied_f.flatten()))
+            all_alpha = np.hstack((all_alpha, applied_alpha.flatten()))
         counter0 += 1
         print('num lp', counter0)
 
     
-    np.save('all_u.npy', all_u)
-    np.save('all_pos.npy', all_pos)
+    # np.save('all_frq.npy', all_frq)
+    # np.save('all_alpha.npy', all_alpha)
+    # np.save('all_pos.npy', all_pos)
     print('iter = ',str(i))
 
 
-np.save('all_u.npy', all_u)
+    
+np.save('all_frq.npy', all_frq)
+np.save('all_alpha.npy', all_alpha)
 np.save('all_pos.npy', all_pos)
 print('data_size = ',len(all_pos))
 

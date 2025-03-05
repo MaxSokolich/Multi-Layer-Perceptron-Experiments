@@ -311,3 +311,10 @@ class uBotsGymDiscrete(uBotsGym):
         truncated = True if (self._steps_elapsed >= self.horizon) else False
 
         return obs, reward, terminated, truncated, info
+    
+class uBotsGymDiscreteHER(uBotsGymDiscrete):
+    def __init__(self, N, XMIN=-10, XMAX=10, YMIN=-10, YMAX=10, dt=0.1, horizon=100, continuous_task=True, render_mode=None):
+        super().__init__(N, XMIN, XMAX, YMIN, YMAX, dt, horizon, continuous_task, render_mode)
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+        ...

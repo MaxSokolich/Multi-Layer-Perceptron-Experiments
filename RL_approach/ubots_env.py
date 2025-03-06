@@ -6,6 +6,7 @@ from copy import deepcopy
 import gymnasium as gym
 from gymnasium.spaces import Box, Discrete
 
+
 class uBotsGym(gym.Env):
     """
     Class for creating uBots Gym(nasium) environment.
@@ -14,27 +15,26 @@ class uBotsGym(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
     LOOKUP_TABLE = [[
-                2.72, 4.06, 5.80, 6.81, 9.07, 9.46, 11.32, 11.95, 14.11, 14.49,
-                16.15, 16.49, 17.30, 17.09, 18.35, 19.68, 19.45, 21.39, 22.50,
-                23.65
-            ],
-            [
-                16.62, 27.30, 37.71, 48.13, 58.72, 66.67, 78.15,
-                84.48, 96.43, 108.05, 119.22, 120.53, 127.00,
-                133.90, 131.50, 151.17, 153.06, 161.49, 170.00,
-                170.95
-            ]]
+        2.72, 4.06, 5.80, 6.81, 9.07, 9.46, 11.32, 11.95, 14.11, 14.49, 16.15,
+        16.49, 17.30, 17.09, 18.35, 19.68, 19.45, 21.39, 22.50, 23.65
+    ],
+                    [
+                        16.62, 27.30, 37.71, 48.13, 58.72, 66.67, 78.15, 84.48,
+                        96.43, 108.05, 119.22, 120.53, 127.00, 133.90, 131.50,
+                        151.17, 153.06, 161.49, 170.00, 170.95
+                    ]]
 
-    def __init__(self,
-                 N, # number of uBots
-                 XMIN=-10, # min x-coord
-                 XMAX=10, # max x-coord
-                 YMIN=-10, # min y-coord
-                 YMAX=10, # max y-coord
-                 dt=0.1, # sampling time
-                 horizon=100, # task/episode horizon
-                 continuous_task=True, # whether to terminate after reaching goal or time elapsed
-                 render_mode=None):
+    def __init__(
+        self,
+        N,  # number of uBots
+        XMIN=-10,  # min x-coord
+        XMAX=10,  # max x-coord
+        YMIN=-10,  # min y-coord
+        YMAX=10,  # max y-coord
+        dt=0.1,  # sampling time
+        horizon=100,  # task/episode horizon
+        continuous_task=True,  # whether to terminate after reaching goal or time elapsed
+        render_mode=None):
         self.N = N
         self.XMIN = XMIN
         self.XMAX = XMAX
@@ -52,21 +52,25 @@ class uBotsGym(gym.Env):
         #     high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
         #     shape=(N, 2),
         #     dtype=np.float32)
-        
-        self.observation_space = gym.spaces.Dict(
-            {
-                "agents": Box(
-                    low=np.array([[XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
-                    high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
-                    shape=(N, 2),
-                    dtype=np.float32),
-                "goals": Box(
-                    low=np.array([[XMIN, YMIN], [XMIN, YMIN]]),  # Lower bounds for (x, y) of each robot
-                    high=np.array([[XMAX, YMAX], [XMAX, YMAX]]),  # Upper bounds for (x, y) of each robot
-                    shape=(N, 2),
-                    dtype=np.float32)
-            }
-        )
+
+        self.observation_space = gym.spaces.Dict({
+            "agents":
+            Box(
+                low=np.array([[XMIN, YMIN], [XMIN, YMIN]
+                              ]),  # Lower bounds for (x, y) of each robot
+                high=np.array([[XMAX, YMAX], [XMAX, YMAX]
+                               ]),  # Upper bounds for (x, y) of each robot
+                shape=(N, 2),
+                dtype=np.float32),
+            "goals":
+            Box(
+                low=np.array([[XMIN, YMIN], [XMIN, YMIN]
+                              ]),  # Lower bounds for (x, y) of each robot
+                high=np.array([[XMAX, YMAX], [XMAX, YMAX]
+                               ]),  # Upper bounds for (x, y) of each robot
+                shape=(N, 2),
+                dtype=np.float32)
+        })
         self.action_space = Box(low=np.array([0, -np.pi]),
                                 high=np.array([24, np.pi]))
 
@@ -81,14 +85,14 @@ class uBotsGym(gym.Env):
         # Generate goal location at start of every episode
         self.goal0_pos, self.goal1_pos = self._get_goal()
 
-        self._steps_elapsed = 0 # for checking horizon
+        self._steps_elapsed = 0  # for checking horizon
 
         self.rob0_togo_prev = None
         self.rob1_togo_prev = None
 
         # create initial robot locations
         self.positions = self._get_init_robot_pos()
-        
+
         # obs = deepcopy(self.positions)
         obs = {"agents": deepcopy(self.positions), "goals": self._get_goal()}
 
@@ -142,9 +146,9 @@ class uBotsGym(gym.Env):
             terminated = False
         else:
             terminated = successes >= 2
-        
+
         info = {'is_success': successes >= 2, 'n_successes': successes}
-        
+
         truncated = True if (self._steps_elapsed >= self.horizon) else False
 
         return obs, reward, terminated, truncated, info
@@ -184,7 +188,7 @@ class uBotsGym(gym.Env):
         ### Option 1: Single reward function
         # reward = -10.0 * (d0 + d1) + successes
         # reward = 10.0 * (np.exp(-d0) + np.exp(-d1))
-        # reward = -1.0 * (np.exp(d0) + np.exp(d1))        
+        # reward = -1.0 * (np.exp(d0) + np.exp(d1))
         # reward = (1.0 - np.tanh(d0)) + (1.0 - np.tanh(d1))
 
         ### Option 2: Reward function decomposition (rob0 = Robot 0, rob1 = Robot 1)
@@ -212,9 +216,14 @@ class uBotsGym(gym.Env):
             rob0_goal_overshoot = 1 if d0 > self.rob0_togo_prev else 0
             rob1_goal_overshoot = 1 if d0 > self.rob0_togo_prev else 0
             all_overshoots = rob0_goal_overshoot + rob1_goal_overshoot
-        
+
         # Robots should reach their goals at approximately same times
         synchronous_reaching = abs(d0 - d1)
+
+        # Penalty for touching/exiting the boundaries
+        rob0_out_of_bounds = (rob0_pos[0] >= self.XMAX) or (rob0_pos[0] <= self.XMIN) or (rob0_pos[1] >= self.YMAX) or (rob0_pos[1] >= self.YMIN)
+        rob1_out_of_bounds = (rob1_pos[0] >= self.XMAX) or (rob1_pos[0] <= self.XMIN) or (rob1_pos[1] >= self.YMAX) or (rob1_pos[1] >= self.YMIN)
+        rew_out_of_bounds = rob0_out_of_bounds or rob1_out_of_bounds
 
         # Compose the final reward
         alpha = 1
@@ -223,29 +232,34 @@ class uBotsGym(gym.Env):
         delta = 1
         lambda_ = 5
         mu = 1
+        sigma = 100
         reward = (-alpha * rob0_dist) + \
                  (-beta * rob1_dist) + \
                  (gamma * rob0_progress) + \
                  (delta * rob1_progress) + \
                  (-lambda_ * all_overshoots) + \
-                 (-mu * synchronous_reaching)
+                 (-mu * synchronous_reaching) + \
+                 (-sigma * rew_out_of_bounds)
 
         return reward, successes
-    
+
     def _get_goal(self):
         # Random goal
-        goal0, goal1 = np.random.uniform([5, 5], [self.XMAX, self.YMAX], (self.N, 2))
-        
+        goal0, goal1 = np.random.uniform([5, 5], [self.XMAX, self.YMAX],
+                                         (self.N, 2))
+
         # Fixed goal
         # goal0 = np.array([10, 10])
         # goal1 = np.array([10, 10])
 
         return goal0, goal1
-    
+
     def _get_init_robot_pos(self):
         # Random goal
-        rob0_pos, rob1_pos = np.random.uniform([self.XMIN, self.YMIN], [self.XMAX, self.YMAX], (self.N, 2))
-        
+        rob0_pos, rob1_pos = np.random.uniform([self.XMIN, self.YMIN],
+                                               [self.XMAX, self.YMAX],
+                                               (self.N, 2))
+
         # Fixed positions
         # rob0_pos = np.array([0, 0])
         # rob1_pos = np.array([0, 0])
@@ -254,25 +268,43 @@ class uBotsGym(gym.Env):
 
     def v_i(self, f):
         if self.N > 2:
-            print("Warning: Number of bots is greater than 2. Replicating the lookup table for the first 2 bots.")
+            print(
+                "Warning: Number of bots is greater than 2. Replicating the lookup table for the first 2 bots."
+            )
             self.LOOKUP_TABLE = self.LOOKUP_TABLE * (self.N // 2 + 1)
-        return np.array([np.interp(f, range(1, 21), self.LOOKUP_TABLE[i]) for i in range(self.N)])
-    
+        return np.array([
+            np.interp(f, range(1, 21), self.LOOKUP_TABLE[i])
+            for i in range(self.N)
+        ])
+
     def __str__(self):
         print("Observation space: ", self.observation_space)
         print("Action space: ", self.action_space)
         return ""
-    
+
 
 class uBotsGymDiscrete(uBotsGym):
-    def __init__(self, N, XMIN=-10, XMAX=10, YMIN=-10, YMAX=10, dt=0.1, horizon=100, continuous_task=True, render_mode=None):
-        super().__init__(N, XMIN, XMAX, YMIN, YMAX, dt, horizon, continuous_task, render_mode)
 
-        n_actions = len(self.LOOKUP_TABLE[0]) # got from the number of entries in the LOOKUP_TABLE
-        n_angles = 5 # feel free to change this number for better resolution
+    def __init__(self,
+                 N,
+                 XMIN=-10,
+                 XMAX=10,
+                 YMIN=-10,
+                 YMAX=10,
+                 dt=0.1,
+                 horizon=100,
+                 continuous_task=True,
+                 render_mode=None):
+        super().__init__(N, XMIN, XMAX, YMIN, YMAX, dt, horizon,
+                         continuous_task, render_mode)
+
+        n_actions = len(self.LOOKUP_TABLE[0]
+                        )  # got from the number of entries in the LOOKUP_TABLE
+        n_angles = 5  # feel free to change this number for better resolution
         self.dt_alpha = 2 * np.pi / n_angles
 
-        self.action_space_cartesian_product = [(i, j) for i in range(n_actions) for j in range(n_angles)]
+        self.action_space_cartesian_product = [(i, j) for i in range(n_actions)
+                                               for j in range(n_angles)]
 
         # self.action_space = MultiDiscrete([n_actions, n_actions])
         self.action_space = Discrete(len(self.action_space_cartesian_product))
@@ -299,22 +331,92 @@ class uBotsGymDiscrete(uBotsGym):
         obs = {"agents": deepcopy(self.positions), "goals": self._get_goal()}
 
         # Get reward and number of robots successfully reached their goals
-        reward, successes = self._get_reward(obs)
+        reward, successes = self._get_reward(obs, eps=0.1)
 
         if self.continuous_task:
             terminated = False
         else:
             terminated = successes >= 2
-        
+
         info = {'is_success': successes >= 2, 'n_successes': successes}
-        
+
         truncated = True if (self._steps_elapsed >= self.horizon) else False
 
         return obs, reward, terminated, truncated, info
-    
+
+
 class uBotsGymDiscreteHER(uBotsGymDiscrete):
-    def __init__(self, N, XMIN=-10, XMAX=10, YMIN=-10, YMAX=10, dt=0.1, horizon=100, continuous_task=True, render_mode=None):
-        super().__init__(N, XMIN, XMAX, YMIN, YMAX, dt, horizon, continuous_task, render_mode)
+
+    def __init__(self,
+                 N,
+                 XMIN=-10,
+                 XMAX=10,
+                 YMIN=-10,
+                 YMAX=10,
+                 dt=0.1,
+                 horizon=100,
+                 continuous_task=True,
+                 render_mode=None):
+        super().__init__(N, XMIN, XMAX, YMIN, YMAX, dt, horizon,
+                         continuous_task, render_mode)
+
+        self.observation_space = gym.spaces.Dict({
+            "observation":
+            Box(
+                low=np.array([XMIN, YMIN, XMIN, YMIN]*2),  # Lower bounds for (x, y) of each robot
+                high=np.array([XMAX, YMAX, XMAX, YMAX]*2), # Upper bounds for (x, y) of each robot
+                # shape=(N, 4),
+                dtype=np.float32),
+            "achieved_goal":
+            Box(
+                low=np.array([XMIN, YMIN, XMIN,
+                              YMIN]),  # Lower bounds for (x, y) of each robot
+                high=np.array([XMAX, YMAX, XMAX,
+                               YMAX]),  # Upper bounds for (x, y) of each robot
+                # shape=(N, 2),
+                dtype=np.float32),
+            "desired_goal":
+            Box(
+                low=np.array([XMIN, YMIN, XMIN,
+                              YMIN]),  # Lower bounds for (x, y) of each robot
+                high=np.array([XMAX, YMAX, XMAX,
+                               YMAX]),  # Upper bounds for (x, y) of each robot
+                # shape=(N, 2),
+                dtype=np.float32),
+        })
+
+    def reset(self, seed=None):
+        obs, info = super().reset(seed)
+        self.obs_her = {
+            "observation": self.flatten_obs(obs),
+            "achieved_goal": self.flatten_goals(obs["agents"]),
+            "desired_goal": self.flatten_goals(obs["goals"])
+        }
+        return self.obs_her, info
+
+    def flatten_goals(self, obs):
+        agent0 = obs[0]
+        agent1 = obs[1]
+        return np.concatenate((agent0, agent1))
+
+    def flatten_obs(self, obs):
+        agents = obs["agents"]
+        goals = obs["goals"]
+        flat_agent0_obs = np.concatenate((agents[0], goals[0]))
+        flat_agent1_obs = np.concatenate((agents[1], goals[1]))
+        obs_flat = np.concatenate((flat_agent0_obs, flat_agent1_obs))
+        return obs_flat
+
+    def step(self, action):
+        obs, self.reward, terminated, truncated, info = super().step(action)
+        self.obs_her = {
+            "observation": self.flatten_obs(obs),
+            "achieved_goal": self.flatten_goals(obs["agents"]),
+            "desired_goal": self.flatten_goals(obs["goals"])
+        }
+
+        return self.obs_her, self.reward, terminated, truncated, info
 
     def compute_reward(self, achieved_goal, desired_goal, info):
-        ...
+        reward = np.zeros(achieved_goal.shape[0], np.float32) + self.reward
+        return reward

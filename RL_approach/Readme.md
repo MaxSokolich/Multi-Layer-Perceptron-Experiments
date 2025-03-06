@@ -20,6 +20,8 @@ Customizations:
 
 4. `_get_reward()` function defines custom rewards. See the function for vanilla geometric reward and then reward decomposition.
 
+5. Hindsight Experience Replay (HER) with DQN: Defined new Gym environment `uBotsGymDiscreteHER` in the `ubots_env.py` file that inherits the discrete environment. Uses flattened states and has dictionary observations.
+
 ## Running experiments
 
 NOTE: 

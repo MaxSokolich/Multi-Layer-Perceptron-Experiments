@@ -195,6 +195,10 @@ class uBotsGym(gym.Env):
         # Distance to goal
         rob0_dist = d0
         rob1_dist = d1
+        # OR: Inverse distance to goal (USE ONE ONLY!)
+        # small epsilon distance added to numerical stability (divide-by-zero issues)
+        # rob0_dist = 1 / (d0 + 1e-4)**2
+        # rob1_dist = 1 / (d1 + 1e-4)**2
 
         # Size of step towards goal (energy cost)
         if self.rob0_togo_prev is None:
@@ -226,20 +230,20 @@ class uBotsGym(gym.Env):
         rew_out_of_bounds = rob0_out_of_bounds or rob1_out_of_bounds
 
         # Compose the final reward
-        alpha = 1
-        beta = 1
+        alpha = -1
+        beta = -1
         gamma = 1
         delta = 1
-        lambda_ = 5
-        mu = 1
-        sigma = 100
-        reward = (-alpha * rob0_dist) + \
-                 (-beta * rob1_dist) + \
+        lambda_ = -5
+        mu = -1
+        sigma = -100
+        reward = (alpha * rob0_dist) + \
+                 (beta * rob1_dist) + \
                  (gamma * rob0_progress) + \
                  (delta * rob1_progress) + \
-                 (-lambda_ * all_overshoots) + \
-                 (-mu * synchronous_reaching) + \
-                 (-sigma * rew_out_of_bounds)
+                 (lambda_ * all_overshoots) + \
+                 (mu * synchronous_reaching) + \
+                 (sigma * rew_out_of_bounds)
 
         return reward, successes
 

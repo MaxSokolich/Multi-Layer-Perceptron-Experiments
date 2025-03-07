@@ -103,7 +103,7 @@ def train(alg='ppo', env_kwargs=None):
     model.set_logger(tb_logger)
 
     # train the model
-    model.learn(3_000_000, progress_bar=True)
+    model.learn(10_000_000, progress_bar=True)
 
     model.save(models_dir / f"{alg}_ubots{ENV_TYPE}")
     del model

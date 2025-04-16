@@ -266,7 +266,7 @@ class Chop:
 
     def get_chop_step(self, box_min = np.array([-100]*4), box_max = np.array([100]*4)):
         ## find the max scale to fit the box
-        print("Finding max scale to fit boxxx")
+        # print("Finding max scale to fit boxxx")
         n = compute_min_n_by_polygon_shrinkage(self.velocities, self.durations, self.x0, box_min, box_max)
         if n is not None:
             return n

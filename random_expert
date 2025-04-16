@@ -1,0 +1,96 @@
+import numpy as np
+import gymnasium as gym
+from stable_baselines3.common.evaluation import evaluate_policy
+from imitation.algorithms import bc
+from imitation.data import rollout
+from imitation.data.wrappers import RolloutInfoWrapper
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.policies import BasePolicy
+
+from ubots_env import uBotsGymDiscrete  # or uBotsGymDiscrete
+
+# 1. Create environment
+N = 2  # number of bots
+rng = np.random.default_rng(0)
+
+def make_single_env(env_kwargs):
+    def _init():
+        env = uBotsGymDiscrete(N=2, **env_kwargs)
+        env = RolloutInfoWrapper(env)  # ✅ required for rollout()
+        return env
+    return _init
+# with open("transitions.pkl", "rb") as f:
+#     transitions = pickle.load(f)
+
+
+env_kwargs = dict(XMIN=-100,
+                 XMAX=100,
+                 YMIN=-100,
+                 YMAX=100,
+                 horizon=10
+                )
+    
+env = make_vec_env(make_single_env(env_kwargs), n_envs=1)
+
+
+
+# 2. Create random policy (can be replaced by your planner or any SB3 model)
+# class RandomPolicy(BasePolicy):
+#     def __init__(self, observation_space, action_space):
+#         super().__init__(observation_space, action_space, features_extractor=None)
+
+#     def predict(self, obs, state=None, episode_start=None, deterministic=False):
+#         action = np.array([self.action_space.sample() for _ in range(len(obs))])
+#         return action, None
+
+class RandomPolicy:
+    def __init__(self, action_space):
+        self.action_space = action_space
+
+    def predict(self, obs, state=None, episode_start=None, deterministic=False):
+        if isinstance(obs, dict):
+            batch_size = len(next(iter(obs.values())))
+        else:
+            batch_size = len(obs)
+        actions = np.array([self.action_space.sample() for _ in range(batch_size)])
+        return actions, None
+
+
+from gymnasium.spaces import Discrete, Box
+def dummy_policy(obs, state=None, dones=None):
+    # obs is a batch (from VecEnv)
+    if isinstance(env.action_space, Discrete):
+        return np.array([env.action_space.sample()]), None
+    elif isinstance(env.action_space, Box):
+        return np.array([env.action_space.sample()]), None
+    else:
+        raise NotImplementedError("Unsupported action space type.")
+
+# 3. Collect expert rollouts
+rollouts = rollout.rollout( 
+    dummy_policy, 
+    env,
+    rollout.make_sample_until(min_timesteps=None, min_episodes=50),
+    rng=rng,
+)
+
+# Check structure
+print("Example obs from trajectory:", rollouts[0].obs[0])
+print("Type of obs:", type(rollouts[0].obs[0]))
+print("Example act:", rollouts[0].acts[0])
+
+# 4. Flatten into transitions (optional for BC, but used for quick checks)
+transitions = rollout.flatten_trajectories(rollouts)
+
+# 5. Train BC from expert
+bc_trainer = bc.BC(
+    observation_space=env.observation_space,
+    action_space=env.action_space,
+    demonstrations=rollouts,
+    rng=rng,
+)
+bc_trainer.train(n_epochs=1)
+
+# 6. Evaluate
+reward, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes=10)
+print("BC policy mean reward:", reward)

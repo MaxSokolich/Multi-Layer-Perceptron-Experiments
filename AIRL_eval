@@ -1,0 +1,30 @@
+import numpy as np
+from stable_baselines3 import PPO
+from ubots_env import uBotsGym
+
+# === Set up environment ===
+env = uBotsGym(
+    N=2,
+    XMIN=-100, XMAX=100,
+    YMIN=-100, YMAX=100,
+    horizon=300,
+    render_mode="human"
+)
+
+# === Load trained AIRL policy ===
+model = PPO.load("airl_policy_discrete.zip")
+
+# === Run & visualize one or more episodes ===
+def visualize_policy(policy, env, n_episodes=3):
+    for i in range(n_episodes):
+        obs, _ = env.reset()
+        done = False
+        while not done:
+            action, _ = policy.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
+            env.render()
+        print(f"Episode {i+1}: Success = {info['is_success']}, #Successes = {info['n_successes']}")
+    env.close()
+
+visualize_policy(model, env)

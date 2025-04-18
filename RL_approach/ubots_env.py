@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -34,7 +35,9 @@ class uBotsGym(gym.Env):
         dt=0.1,  # sampling time
         horizon=100,  # task/episode horizon
         continuous_task=True,  # whether to terminate after reaching goal or time elapsed
-        render_mode=None):
+        render_mode=None,
+        video_dir="videos/" # folder to record videos of evaluation episodes
+        ):
         self.N = N
         self.XMIN = XMIN
         self.XMAX = XMAX
@@ -76,6 +79,10 @@ class uBotsGym(gym.Env):
 
         # Create matplotlib figure if rendering
         if render_mode == "human":
+            self.video_dir = Path(video_dir)
+            self.video_dir.mkdir(exist_ok=True)
+            self._ep_num = 1
+
             self.fig, self.ax = plt.subplots()
 
     def reset(self, seed=None):
@@ -86,6 +93,10 @@ class uBotsGym(gym.Env):
         self.goal0_pos, self.goal1_pos = self._get_goal()
 
         self._steps_elapsed = 0  # for checking horizon
+
+        self.episode_video_path = Path(self.video_dir / f"episode_{self._ep_num}")
+        self.episode_video_path.mkdir(exist_ok=True)
+        self._ep_num += 1 # for saving each episode to its video
 
         self.rob0_togo_prev = None
         self.rob1_togo_prev = None
@@ -155,9 +166,11 @@ class uBotsGym(gym.Env):
 
     def render(self):
         self.scat.set_offsets(self.positions)
-        plt.show(block=False)
+        # plt.show(block=False)
         # Necessary to view frames before they are unrendered
-        plt.pause(0.1)
+        # plt.pause(0.1)
+        plt.savefig(self.episode_video_path / f"frame_{self._steps_elapsed:04}.png", dpi=300)
+
 
     def close(self):
         plt.close()
@@ -197,8 +210,8 @@ class uBotsGym(gym.Env):
         rob1_dist = d1
         # OR: Inverse distance to goal (USE ONE ONLY!)
         # small epsilon distance added to numerical stability (divide-by-zero issues)
-        # rob0_dist = 1 / (d0 + 1e-4)**2
-        # rob1_dist = 1 / (d1 + 1e-4)**2
+        # rob0_dist = -1 / (d0 + 1e-4)**2
+        # rob1_dist = -1 / (d1 + 1e-4)**2
 
         # Size of step towards goal (energy cost)
         if self.rob0_togo_prev is None:
@@ -230,13 +243,14 @@ class uBotsGym(gym.Env):
         rew_out_of_bounds = rob0_out_of_bounds or rob1_out_of_bounds
 
         # Compose the final reward
-        alpha = -1
-        beta = -1
-        gamma = 1
-        delta = 1
-        lambda_ = -5
-        mu = -1
-        sigma = -100
+        # Define the weight coefficients
+        alpha = -1 # for rob0 distance to goal
+        beta = -1 # for rob1 distance to goal
+        gamma = 0 # 0.5 # for rob0 progress towards goal since last step
+        delta = 0 # 0.5 # for rob1 progress towards goal since last step
+        lambda_ = -0.5 # overshooting the goal
+        mu = -0.5 # synchronously reaching the goal
+        sigma = -1000 # exceeding the map bounds
         reward = (alpha * rob0_dist) + \
                  (beta * rob1_dist) + \
                  (gamma * rob0_progress) + \

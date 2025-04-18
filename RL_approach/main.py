@@ -1,7 +1,9 @@
 from pathlib import Path
 import argparse
+import imageio.v2 as imageio
 
 import numpy as np
+import torch
 
 from ubots_env import *
 
@@ -12,6 +14,9 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 
+from gymnasium.wrappers import RecordVideo
+
+from tqdm import tqdm
 
 def run_one_episode():
     env = uBotsGymDiscreteHER(N=2)  #, render_mode="human")
@@ -38,7 +43,6 @@ def make_single_env(env_kwargs):
         else:
             env = uBotsGym(N=2, **env_kwargs)
         return env
-
     return _init
 
 
@@ -46,7 +50,8 @@ def train(alg='ppo', env_kwargs=None):
     '''RL training function'''
 
     # Create environment. Multiple parallel/vectorized environments for faster training
-    env = make_vec_env(make_single_env(env_kwargs), n_envs=16)
+    n_envs = 24
+    env = make_vec_env(make_single_env(env_kwargs), n_envs=n_envs)
 
     if alg == 'ppo':
         # PPO: on-policy RL
@@ -80,7 +85,7 @@ def train(alg='ppo', env_kwargs=None):
         )
     else:
         # DQN: off-policy RL with Hindsight Experience Replay (HER)
-        policy_kwargs = dict(net_arch=[512, 512, 512])
+        policy_kwargs = dict(net_arch=[128, 256, 128], activation_fn=torch.nn.ELU)
         model = DQN("MultiInputPolicy",
                     env,
                     policy_kwargs=policy_kwargs,
@@ -89,12 +94,13 @@ def train(alg='ppo', env_kwargs=None):
                         n_sampled_goal=4,
                         goal_selection_strategy="future",
                     ),
-                    learning_starts=10_000,
-                    batch_size=256,
+                    exploration_fraction=0.7,
+                    learning_starts=n_envs*400,
+                    batch_size=n_envs*64,
                     tau=1.0,
                     gamma=0.99,
-                    train_freq=4,
-                    gradient_steps=1,
+                    train_freq=20,
+                    gradient_steps=5,
                     verbose=1)
 
     # log the training params
@@ -103,18 +109,19 @@ def train(alg='ppo', env_kwargs=None):
     model.set_logger(tb_logger)
 
     # train the model
-    model.learn(10_000_000, progress_bar=True)
+    model.learn(12_000_000, progress_bar=True)
 
     model.save(models_dir / f"{alg}_ubots{ENV_TYPE}")
     del model
     env.close()
 
 
-def evaluate(alg, env_kwargs, n_trials=3):
+def evaluate(alg, env_kwargs, n_trials=5):
     '''Evaluate the trained RL model'''
 
     # create single environment for evaluation
     env = uBotsGymDiscreteHER(N=2, render_mode="human", **env_kwargs)
+    
     if alg == 'ppo':
         ALG = PPO
     elif alg == 'sac':
@@ -126,7 +133,7 @@ def evaluate(alg, env_kwargs, n_trials=3):
     model = ALG.load(models_dir / f"{alg}_ubots{ENV_TYPE}", env=env)
 
     # run some episodes (trials)
-    for trial in range(n_trials):
+    for trial in tqdm(range(n_trials)):
         obs, info = env.reset()
         done = False
         while not done:
@@ -138,6 +145,26 @@ def evaluate(alg, env_kwargs, n_trials=3):
             f"Trial: {trial}, Success: {info['is_success']}, # Successes = {info['n_successes']}"
         )
     env.close()
+
+def convert2video():
+    video_dir = Path("videos/")
+
+    episode_dirs = list(video_dir.iterdir())
+    for episode_dir in episode_dirs:
+        frames = sorted(list(episode_dir.glob("*.png")))
+
+        # Set the output video path
+        output_path = episode_dir / "episode_video.mp4"
+
+        # Create a writer with desired fps
+        writer = imageio.get_writer(output_path, fps=10)
+
+        # Add each image to the writer
+        for filename in frames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+
+        writer.close()
 
 
 if __name__ == '__main__':
@@ -178,4 +205,6 @@ if __name__ == '__main__':
         train(alg, env_kwargs)
     else:
         # if evaluating
-        evaluate(alg, env_kwargs)
+        evaluate(alg, env_kwargs, n_trials=10)
+
+        convert2video()
